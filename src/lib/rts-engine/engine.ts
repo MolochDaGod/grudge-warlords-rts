@@ -49,6 +49,8 @@ function makeUnit(faction: Faction, type: UnitType, pos: Vec2, isHero = false): 
     controlGroup: 0,
     foodCost: isHero ? 5 : (cfg?.foodCost ?? 1),
     kills: 0,
+    holdPosition: false,
+    deathTimer: 0,
   };
 }
 
@@ -179,6 +181,10 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
     deadHeroes: [],
     playerFaction, popCap: 12, mapId: mapDef.id,
     gameStatus: 'playing',
+    selectedBuildingId: null,
+    attackMoveMode: false,
+    lastEventPos: null,
+    buildMenuOpen: false,
   };
 
   // Castles (pre-built)
@@ -376,11 +382,17 @@ export function updateGame(state: GameState, dt: number): void {
           unit.attackCooldown = heroCfg?.attackSpeed ?? cfg?.attackSpeed ?? 1.0;
         }
       } else {
-        // Move toward target
-        unit.target = { ...target.pos };
-        unit.waypoints = computePathWaypoints(state.islands, unit.pos, target.pos);
-        if (unit.waypoints.length > 0) unit.target = unit.waypoints.shift()!;
-        unit.state = 'moving';
+        // Move toward target (unless holding position)
+        if (!unit.holdPosition) {
+          unit.target = { ...target.pos };
+          unit.waypoints = computePathWaypoints(state.islands, unit.pos, target.pos);
+          if (unit.waypoints.length > 0) unit.target = unit.waypoints.shift()!;
+          unit.state = 'moving';
+        } else {
+          // Holding position — drop target if out of range
+          unit.attackTargetId = null;
+          unit.state = 'idle';
+        }
       }
     }
 
@@ -561,6 +573,52 @@ export function updateGame(state: GameState, dt: number): void {
   }
   state.deadHeroes = state.deadHeroes.filter(dh => dh.reviveTimer > 0);
 
+  // Dead unit cleanup (remove after 3 seconds)
+  for (const [uid, unit] of state.units) {
+    if (unit.state === 'dead') {
+      unit.deathTimer += dt;
+      if (unit.deathTimer >= 3) {
+        state.units.delete(uid);
+        state.selected.delete(uid);
+      }
+    }
+  }
+
+  // Auto-aggro: idle military units attack nearby enemies within 200px
+  for (const [, unit] of state.units) {
+    if (unit.state !== 'idle' || unit.role === 'worker' || unit.faction === 'neutral') continue;
+    if (unit.attackTargetId || unit.harvestTargetId || unit.buildTargetId) continue;
+    let nearestEnemy: Unit | null = null;
+    let nearestDist = 200;
+    for (const [, e] of state.units) {
+      if (e.faction === unit.faction || e.faction === 'neutral' || e.state === 'dead') continue;
+      const d = dist(unit.pos, e.pos);
+      if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
+    }
+    if (nearestEnemy) {
+      unit.attackTargetId = nearestEnemy.id;
+    }
+  }
+
+  // Healer auto-cast: priest / orcHealer heal nearby wounded allies
+  for (const [, unit] of state.units) {
+    if (unit.state === 'dead') continue;
+    if (unit.type !== 'priest' && unit.type !== 'orcHealer') continue;
+    if (unit.attackTargetId || unit.state === 'moving') continue;
+    unit.healTimer += dt;
+    if (unit.healTimer >= PRIEST_HEAL_PULSE) {
+      unit.healTimer = 0;
+      for (const [, ally] of state.units) {
+        if (ally.faction !== unit.faction || ally.state === 'dead') continue;
+        if (ally.hp >= ally.maxHp) continue;
+        if (dist(unit.pos, ally.pos) < PRIEST_HEAL_RANGE) {
+          ally.hp = Math.min(ally.maxHp, ally.hp + PRIEST_HEAL_AMOUNT);
+          state.vfxEffects.set(uid(), { id: uid(), pos: { ...ally.pos }, type: 'holy_heal', age: 0, duration: 0.5 });
+        }
+      }
+    }
+  }
+
   // AI
   updateAI(state, dt);
 
@@ -572,6 +630,8 @@ export function updateGame(state: GameState, dt: number): void {
 function killUnit(state: GameState, unit: Unit, killer: Unit | null): void {
   unit.state = 'dead';
   unit.hp = 0;
+  unit.deathTimer = 0;
+  state.lastEventPos = { ...unit.pos };
 
   // Death FX particles + audio
   fxController.playDeath({ ...unit.pos }, unit.isHero, state);
@@ -762,6 +822,7 @@ export function commandMove(state: GameState, targetPos: Vec2): void {
     if (!unit || unit.state === 'dead') continue;
     unit.attackTargetId = null;
     unit.harvestTargetId = null;
+    unit.holdPosition = false;
     unit.waypoints = computePathWaypoints(state.islands, unit.pos, targetPos);
     unit.target = unit.waypoints.length > 0 ? unit.waypoints.shift()! : { ...targetPos };
     unit.state = 'moving';
@@ -865,6 +926,46 @@ export function commandSummonHero(state: GameState, heroType: UnitType): boolean
   const pos = { x: altar.pos.x + 60, y: altar.pos.y + 60 };
   spawnUnit(state, 'blue', heroType, pos, true);
   return true;
+}
+
+export function commandStop(state: GameState): void {
+  for (const uid of state.selected) {
+    const unit = state.units.get(uid);
+    if (!unit || unit.state === 'dead') continue;
+    unit.attackTargetId = null;
+    unit.harvestTargetId = null;
+    unit.returnToId = null;
+    unit.buildTargetId = null;
+    unit.target = null;
+    unit.waypoints = [];
+    unit.state = 'idle';
+    unit.anim.action = 'idle';
+  }
+}
+
+export function commandHold(state: GameState): void {
+  for (const uid of state.selected) {
+    const unit = state.units.get(uid);
+    if (!unit || unit.state === 'dead') continue;
+    unit.holdPosition = true;
+    unit.target = null;
+    unit.waypoints = [];
+    unit.state = 'idle';
+    unit.anim.action = 'idle';
+  }
+}
+
+export function commandAttackMove(state: GameState, targetPos: Vec2): void {
+  for (const uid of state.selected) {
+    const unit = state.units.get(uid);
+    if (!unit || unit.state === 'dead') continue;
+    unit.holdPosition = false;
+    unit.harvestTargetId = null;
+    unit.waypoints = computePathWaypoints(state.islands, unit.pos, targetPos);
+    unit.target = unit.waypoints.length > 0 ? unit.waypoints.shift()! : { ...targetPos };
+    unit.state = 'moving';
+    // Units will auto-aggro enemies they encounter on the way
+  }
 }
 
 export function commandUpgradeTownHall(state: GameState): boolean {

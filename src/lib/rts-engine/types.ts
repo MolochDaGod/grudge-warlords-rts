@@ -159,6 +159,10 @@ export interface Unit {
   foodCost: number;
   /** Kill count for stats */
   kills: number;
+  /** Hold position — don't chase targets */
+  holdPosition: boolean;
+  /** Death timer — seconds since death (for cleanup) */
+  deathTimer: number;
 }
 
 // ── Building (WC3-style: tech tier, prerequisites, training, upgrades) ─────────
@@ -348,6 +352,14 @@ export interface GameState {
   popCap: number;
   mapId: string;
   gameStatus: 'menu' | 'playing' | 'paused' | 'won' | 'lost';
+  /** Currently selected building (for command card UI) */
+  selectedBuildingId: string | null;
+  /** Attack-move mode active */
+  attackMoveMode: boolean;
+  /** Last notable event position (for Space key center) */
+  lastEventPos: Vec2 | null;
+  /** Build menu sub-mode: null=closed, 'buildings'=open */
+  buildMenuOpen: boolean;
 }
 
 // ── Config types ───────────────────────────────────────────────────────────────
