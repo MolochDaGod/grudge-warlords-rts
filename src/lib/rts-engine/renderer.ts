@@ -327,6 +327,20 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
   const size = Math.round(baseSize * display.scale);
   const half = size / 2;
 
+  // ── Faction colored ring (always visible — key for identification) ────────
+  const factionColor = FACTION_COLORS[unit.faction] || '#888';
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = factionColor;
+  ctx.lineWidth = unit.isHero ? 2.5 : 1.5;
+  ctx.beginPath();
+  ctx.ellipse(unit.pos.x, unit.pos.y + half * 0.35, half * 0.6, half * 0.2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Fill faction disc (subtle)
+  ctx.fillStyle = factionColor;
+  ctx.globalAlpha = 0.12;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
   // Shadow
   if (display.shadow > 0) {
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -335,7 +349,7 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
     ctx.fill();
   }
 
-  // Try sprite rendering — use neutral sprites too (all units get sprites)
+  // Try sprite rendering
   const faction = unit.faction === 'blue' ? 'blue' : 'red';
   const sprites = getUnitSprites(faction as 'blue' | 'red', unit.type);
   const animKey = unit.anim.action === 'run' ? 'run' : unit.anim.action === 'attack' ? 'attack' :
@@ -345,16 +359,17 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
   if (sprCfg) {
     const elapsed = unit.anim.elapsed * 1000;
     const frameIdx = Math.floor(elapsed / sprCfg.msPerFrame) % sprCfg.frames;
-    // Scale sprite to consistent display size regardless of source resolution
     drawSprite(ctx, sprCfg.src, frameIdx, sprCfg.frameW, sprCfg.frameH,
       unit.pos.x - half, unit.pos.y - half, size, size, unit.anim.flipX);
   } else {
-    // Fallback: colored circle
-    ctx.fillStyle = FACTION_COLORS[unit.faction] || '#888';
+    // Fallback: styled circle with icon
+    ctx.fillStyle = factionColor;
     ctx.beginPath();
     ctx.arc(unit.pos.x, unit.pos.y, half * 0.7, 0, Math.PI * 2);
     ctx.fill();
-    // Role icon
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.font = `${unit.isHero ? 18 : 12}px sans-serif`;
     ctx.textAlign = 'center';
@@ -374,7 +389,7 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
     ctx.stroke();
   }
 
-  // HP bar
+  // ── HP bar ───────────────────────────────────────────────────────────────
   const barW = size * 0.8;
   const hpPct = unit.hp / unit.maxHp;
   ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
@@ -383,7 +398,7 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
   ctx.lineWidth = 0.5;
   ctx.strokeRect(unit.pos.x - barW / 2, unit.pos.y - half - 8, barW, 3);
 
-  // Hero level badge
+  // ── Hero level badge ─────────────────────────────────────────────────────
   if (unit.isHero) {
     ctx.fillStyle = '#7c3aed';
     ctx.beginPath();
@@ -408,6 +423,25 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
       ctx.fillStyle = '#a855f7';
       ctx.fillRect(unit.pos.x - barW / 2, unit.pos.y - half - 1, barW * xpPct, 1);
     }
+
+    // Hero name label
+    const heroCfg = HERO_CONFIGS.find(h => h.type === unit.type);
+    if (heroCfg) {
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(heroCfg.name, unit.pos.x, unit.pos.y + half + 12);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // ── Unit type label (non-hero, non-worker) ───────────────────────────────
+  if (!unit.isHero && unit.role !== 'worker') {
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '7px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(unit.type, unit.pos.x, unit.pos.y + half + 8);
+    ctx.textAlign = 'left';
   }
 
   // Carry indicator
@@ -420,17 +454,132 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
 }
 
 function drawProjectile(ctx: CanvasRenderingContext2D, proj: Projectile) {
-  ctx.fillStyle = proj.faction === 'blue' ? '#60a5fa' : '#f87171';
-  ctx.beginPath();
-  ctx.arc(proj.pos.x, proj.pos.y, 3, 0, Math.PI * 2);
-  ctx.fill();
-  // Trail
-  ctx.strokeStyle = proj.faction === 'blue' ? 'rgba(96,165,250,0.3)' : 'rgba(248,113,113,0.3)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(proj.pos.x, proj.pos.y);
-  ctx.lineTo(proj.pos.x - proj.vel.x * 0.03, proj.pos.y - proj.vel.y * 0.03);
-  ctx.stroke();
+  const style = proj.projectileStyle ?? 'none';
+  const angle = Math.atan2(proj.vel.y, proj.vel.x);
+  const tailX = proj.pos.x - proj.vel.x * 0.04;
+  const tailY = proj.pos.y - proj.vel.y * 0.04;
+
+  ctx.save();
+
+  if (style === 'arrow') {
+    // Arrow shaft + head
+    ctx.translate(proj.pos.x, proj.pos.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#c4a35a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(0, 0); ctx.stroke();
+    // Arrowhead
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-2, -3); ctx.lineTo(-2, 3); ctx.closePath(); ctx.fill();
+    // Fletching
+    ctx.strokeStyle = '#8b5e3c';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-16, -3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-16, 3); ctx.stroke();
+  } else if (style === 'bolt') {
+    // Crossbow bolt / ballista bolt — thicker, metallic
+    ctx.translate(proj.pos.x, proj.pos.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.fillStyle = '#e0e0e0';
+    ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-1, -3); ctx.lineTo(-1, 3); ctx.closePath(); ctx.fill();
+    // Glow
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 4;
+    ctx.fillRect(-1, -1, 2, 2);
+    ctx.shadowBlur = 0;
+  } else if (style === 'fire') {
+    // Fireball with glow
+    const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 1, proj.pos.x, proj.pos.y, 10);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.3, '#ff6b00');
+    grad.addColorStop(0.7, '#ff2200');
+    grad.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 10, 0, Math.PI * 2); ctx.fill();
+    // Fire trail
+    ctx.strokeStyle = 'rgba(255,100,0,0.5)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,200,0,0.3)';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  } else if (style === 'energy') {
+    // Arcane energy orb
+    const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 8);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.4, '#7c3aed');
+    grad.addColorStop(1, 'rgba(124,58,237,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 8, 0, Math.PI * 2); ctx.fill();
+    // Sparkle trail
+    ctx.strokeStyle = 'rgba(167,139,250,0.4)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  } else if (style === 'holy') {
+    // Golden holy bolt
+    const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 7);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.3, '#ffd700');
+    grad.addColorStop(1, 'rgba(255,215,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,215,0,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  } else if (style === 'water') {
+    // Ice/water shard
+    const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 7);
+    grad.addColorStop(0, '#e0f7ff');
+    grad.addColorStop(0.4, '#38bdf8');
+    grad.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  } else if (style === 'thunder') {
+    // Lightning bolt — jagged line
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#60a5fa';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(proj.pos.x, proj.pos.y);
+    const mx = (proj.pos.x + tailX) / 2 + (Math.random() - 0.5) * 8;
+    const my = (proj.pos.y + tailY) / 2 + (Math.random() - 0.5) * 8;
+    ctx.lineTo(mx, my);
+    ctx.lineTo(tailX, tailY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Core glow
+    ctx.fillStyle = '#bfdbfe';
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 3, 0, Math.PI * 2); ctx.fill();
+  } else if (style === 'shadow') {
+    // Dark shadow wisp
+    const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 8);
+    grad.addColorStop(0, '#9333ea');
+    grad.addColorStop(0.5, '#581c87');
+    grad.addColorStop(1, 'rgba(88,28,135,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(proj.pos.x, proj.pos.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(147,51,234,0.4)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  } else {
+    // Default: faction-colored dot with trail
+    ctx.fillStyle = proj.faction === 'blue' ? '#60a5fa' : '#f87171';
+    ctx.beginPath();
+    ctx.arc(proj.pos.x, proj.pos.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = proj.faction === 'blue' ? 'rgba(96,165,250,0.3)' : 'rgba(248,113,113,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(proj.pos.x, proj.pos.y); ctx.lineTo(tailX, tailY); ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function drawVfx(ctx: CanvasRenderingContext2D, vfx: VfxEffect) {

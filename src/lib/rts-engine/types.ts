@@ -238,6 +238,7 @@ export interface Projectile {
   faction: Faction;
   isSlowing?: boolean;
   attackerType?: string;
+  projectileStyle?: string;
 }
 
 // ── VFX ────────────────────────────────────────────────────────────────────────
@@ -308,9 +309,12 @@ export interface AIState {
   phase: 'early' | 'creep' | 'expand' | 'harass' | 'push';
   phaseTimer: number;
   attackTimer: number;
+  buildTimer: number;
   lastAction: string;
   heroLevel: number;
   techTier: TechTier;
+  heroSummoned: boolean;
+  aiAttackInterval: number;
 }
 
 // ── Control Groups ─────────────────────────────────────────────────────────────

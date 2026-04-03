@@ -173,7 +173,7 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
     enemyResources:  { gold: mapDef.startingResources.gold, wood: mapDef.startingResources.wood, food: 0, maxFood: 12 },
     selected: new Set(), dragStart: null, dragEnd: null, buildMode: null,
     winner: null,
-    aiState: { phase: 'early', phaseTimer: 0, attackTimer: 0, lastAction: '', heroLevel: 0, techTier: 1 },
+    aiState: { phase: 'early', phaseTimer: 0, attackTimer: 0, buildTimer: 0, lastAction: '', heroLevel: 0, techTier: 1, heroSummoned: false, aiAttackInterval: mapDef.aiAttackInterval },
     dayNightCycle: 0, timeOfDay: 'day',
     upkeepLevel: 'none', techTier: 1,
     controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set(), 9: new Set() },
@@ -353,14 +353,19 @@ export function updateGame(state: GameState, dt: number): void {
           const levelDmg = unit.isHero && heroCfg ? heroCfg.damagePerLevel * (unit.heroLevel - 1) : 0;
           const totalDmg = calcDamage(baseDmg + bonusDmg + levelDmg, target.armor);
 
+          // Face toward target
+          unit.anim.flipX = target.pos.x < unit.pos.x;
+
           if (range > 80) {
             // Ranged → fire projectile
             const dir = norm({ x: target.pos.x - unit.pos.x, y: target.pos.y - unit.pos.y });
+            const display = getUnitDisplay(unit.type);
             const proj: Projectile = {
               id: uid(), pos: { ...unit.pos },
               vel: { x: dir.x * 400, y: dir.y * 400 },
               targetId: target.id, damage: totalDmg, faction: unit.faction,
               attackerType: unit.type,
+              projectileStyle: display.projectile,
             };
             state.projectiles.set(proj.id, proj);
           } else {
@@ -531,6 +536,7 @@ export function updateGame(state: GameState, dt: number): void {
         id: uid(), pos: { ...bld.pos },
         vel: { x: dir.x * 350, y: dir.y * 350 },
         targetId: closest.id, damage: calcDamage(dmg, closest.armor), faction: bld.faction,
+        projectileStyle: 'bolt',
       };
       state.projectiles.set(proj.id, proj);
       bld.attackCooldown = 2.0;
@@ -690,61 +696,320 @@ function killUnit(state: GameState, unit: Unit, killer: Unit | null): void {
   res.food = countFood(state, unit.faction);
 }
 
-// ── AI (simple WC3-style: build → creep → expand → push) ──────────────────────
+// ── AI (WC3-style: phased with hero, tech, economy, defense) ──────────────
+
+/** Place a building near the AI castle with offset based on building type and count */
+function aiPlaceBuilding(state: GameState, castle: Building, type: BuildingType, index: number): void {
+  const res = state.enemyResources;
+  const cfg = BUILDING_CONFIGS[type];
+  if (res.gold < cfg.cost.gold || res.wood < cfg.cost.wood) return;
+
+  // Already have one under construction?
+  const existing = [...state.buildings.values()].some(
+    b => b.faction === 'red' && b.type === type && b.underConstruction
+  );
+  if (existing) return;
+
+  // Offset grid around castle
+  const offsets: Record<string, { x: number; y: number }[]> = {
+    barracks:   [{ x: 150, y: 100 }],
+    archery:    [{ x: 150, y: -100 }],
+    altar:      [{ x: -140, y: 100 }],
+    chapel:     [{ x: 150, y: 220 }],
+    workshop:   [{ x: 150, y: -220 }],
+    sanctum:    [{ x: -140, y: -100 }],
+    blacksmith: [{ x: -140, y: 220 }],
+    tower:      [{ x: -80 + index * 100, y: -160 }, { x: -80 + index * 100, y: 260 }],
+    house:      [
+      { x: -200, y: -60 + index * 80 },
+      { x: -200, y: 20 + index * 80 },
+      { x: -200, y: 100 + index * 80 },
+      { x: -280, y: -60 + index * 80 },
+      { x: -280, y: 20 + index * 80 },
+      { x: -280, y: 100 + index * 80 },
+    ],
+  };
+
+  const off = offsets[type]?.[Math.min(index, (offsets[type]?.length ?? 1) - 1)] ?? { x: 150 + index * 100, y: 100 };
+  const pos = { x: castle.pos.x + off.x, y: castle.pos.y + off.y };
+
+  res.gold -= cfg.cost.gold;
+  res.wood -= cfg.cost.wood;
+  const bld = makeBuilding('red', type, pos, true);
+  state.buildings.set(bld.id, bld);
+
+  // Assign an idle worker to build
+  const worker = [...state.units.values()].find(
+    u => u.faction === 'red' && u.role === 'worker' && u.state === 'idle' && !u.buildTargetId
+  );
+  if (worker) {
+    worker.buildTargetId = bld.id;
+    worker.harvestTargetId = null;
+    worker.attackTargetId = null;
+    worker.target = { ...pos };
+    worker.waypoints = computePathWaypoints(state.islands, worker.pos, pos);
+    if (worker.waypoints.length > 0) worker.target = worker.waypoints.shift()!;
+    worker.state = 'moving';
+  }
+}
+
+/** Find nearest uncleared creep camp to a position */
+function findNearestUnclearedCamp(state: GameState, pos: Vec2): CreepCamp | null {
+  let best: CreepCamp | null = null;
+  let bestD = Infinity;
+  for (const camp of state.creepCamps) {
+    if (camp.cleared) continue;
+    const d = dist(pos, camp.pos);
+    if (d < bestD) { bestD = d; best = camp; }
+  }
+  return best;
+}
+
 function updateAI(state: GameState, dt: number): void {
   const ai = state.aiState;
   ai.phaseTimer += dt;
   ai.attackTimer += dt;
+  ai.buildTimer += dt;
 
-  // Count AI units and buildings
-  let workerCount = 0, armyCount = 0, hasBarracks = false, hasAltar = false;
+  // ── Census ───────────────────────────────────────────────────────────────────
+  let workerCount = 0, armyCount = 0, heroCount = 0;
+  let hasBarracks = false, hasArchery = false, hasAltar = false, hasChapel = false;
+  let hasWorkshop = false, hasSanctum = false;
+  let houseCount = 0, towerCount = 0;
+  const aiHeroes: Unit[] = [];
+
   for (const [, u] of state.units) {
     if (u.faction !== 'red' || u.state === 'dead') continue;
-    if (u.role === 'worker') workerCount++;
+    if (u.isHero) { heroCount++; aiHeroes.push(u); }
+    else if (u.role === 'worker') workerCount++;
     else armyCount++;
   }
   for (const [, b] of state.buildings) {
-    if (b.faction !== 'red' || b.underConstruction) continue;
-    if (b.type === 'barracks') hasBarracks = true;
-    if (b.type === 'altar') hasAltar = true;
+    if (b.faction !== 'red') continue;
+    const done = !b.underConstruction;
+    if (b.type === 'barracks' && done) hasBarracks = true;
+    if (b.type === 'archery' && done) hasArchery = true;
+    if (b.type === 'altar' && done) hasAltar = true;
+    if (b.type === 'chapel' && done) hasChapel = true;
+    if (b.type === 'workshop' && done) hasWorkshop = true;
+    if (b.type === 'sanctum' && done) hasSanctum = true;
+    if (b.type === 'house') houseCount++;
+    if (b.type === 'tower') towerCount++;
   }
 
-  // Simple AI: train workers, build barracks, train army, attack
-  const castle = [...state.buildings.values()].find(b => b.faction === 'red' && (b.type === 'castle' || b.type === 'keep' || b.type === 'fortress'));
+  const res = state.enemyResources;
+  const castle = [...state.buildings.values()].find(
+    b => b.faction === 'red' && (b.type === 'castle' || b.type === 'keep' || b.type === 'fortress')
+  );
   if (!castle) return;
 
-  // Train workers
-  if (workerCount < 5 && castle.trainingQueue.length === 0 && state.enemyResources.gold >= 75) {
-    castle.trainingQueue.push('pawn');
-    state.enemyResources.gold -= 75;
+  // ── Phase transitions ──────────────────────────────────────────────────────
+  if (ai.phase === 'early' && ai.phaseTimer > 30 && hasBarracks) {
+    ai.phase = 'creep';
+    ai.phaseTimer = 0;
+  } else if (ai.phase === 'creep' && ai.phaseTimer > 60) {
+    ai.phase = 'expand';
+    ai.phaseTimer = 0;
+  } else if (ai.phase === 'expand' && ai.techTier >= 2 && armyCount >= 6) {
+    ai.phase = 'harass';
+    ai.phaseTimer = 0;
+  } else if (ai.phase === 'harass' && (ai.techTier >= 3 || armyCount >= 12)) {
+    ai.phase = 'push';
+    ai.phaseTimer = 0;
   }
 
-  // Build barracks
-  if (!hasBarracks && state.enemyResources.wood >= 200 && ai.phaseTimer > 15) {
-    const pos = { x: castle.pos.x + 150, y: castle.pos.y + 100 };
-    const bld = makeBuilding('red', 'barracks', pos, true);
-    state.buildings.set(bld.id, bld);
-    state.enemyResources.wood -= 200;
-    // Assign a worker to build
-    const worker = [...state.units.values()].find(u => u.faction === 'red' && u.role === 'worker' && u.state === 'idle');
-    if (worker) worker.buildTargetId = bld.id;
+  // Throttle building actions to every 2 seconds
+  if (ai.buildTimer < 2) {
+    // Skip to attack/harvest logic below
+  } else {
+    ai.buildTimer = 0;
+
+    // ── Train workers (cap at 8) ───────────────────────────────────────────────
+    if (workerCount < 8 && castle.trainingQueue.length === 0 && res.gold >= 75) {
+      castle.trainingQueue.push('pawn');
+      res.gold -= 75;
+    }
+
+    // ── Build houses when food cap is tight ─────────────────────────────────
+    if (res.food + 4 >= res.maxFood && res.wood >= 50 && houseCount < 6) {
+      aiPlaceBuilding(state, castle, 'house', houseCount);
+    }
+
+    // ── Build barracks ─────────────────────────────────────────────────────
+    if (!hasBarracks && res.wood >= 200 && ai.phaseTimer > 10) {
+      aiPlaceBuilding(state, castle, 'barracks', 0);
+    }
+
+    // ── Build altar for heroes ─────────────────────────────────────────────
+    if (!hasAltar && hasBarracks && res.wood >= 200 && res.gold >= 150) {
+      aiPlaceBuilding(state, castle, 'altar', 0);
+    }
+
+    // ── Build archery range ────────────────────────────────────────────────
+    if (!hasArchery && hasBarracks && res.wood >= 150 && res.gold >= 50) {
+      aiPlaceBuilding(state, castle, 'archery', 0);
+    }
+
+    // ── Tech progression (expand phase+) ──────────────────────────────────
+    if (ai.phase === 'expand' || ai.phase === 'harass' || ai.phase === 'push') {
+      // Upgrade castle → keep
+      if (castle.type === 'castle' && res.gold >= 500 && res.wood >= 200) {
+        const cfg = BUILDING_CONFIGS['keep'];
+        res.gold -= cfg.cost.gold;
+        res.wood -= cfg.cost.wood;
+        castle.type = 'keep';
+        castle.maxHp = cfg.hp;
+        castle.hp = cfg.hp;
+        castle.techTier = cfg.techTier as TechTier;
+        ai.techTier = 2;
+      }
+      // Build chapel (T2)
+      if (!hasChapel && ai.techTier >= 2 && hasBarracks && res.wood >= 200 && res.gold >= 100) {
+        aiPlaceBuilding(state, castle, 'chapel', 0);
+      }
+      // Build workshop (T2)
+      if (!hasWorkshop && ai.techTier >= 2 && hasBarracks && res.wood >= 200 && res.gold >= 100) {
+        aiPlaceBuilding(state, castle, 'workshop', 0);
+      }
+      // Upgrade keep → fortress
+      if (castle.type === 'keep' && res.gold >= 700 && res.wood >= 300 && ai.phaseTimer > 30) {
+        const cfg = BUILDING_CONFIGS['fortress'];
+        res.gold -= cfg.cost.gold;
+        res.wood -= cfg.cost.wood;
+        castle.type = 'fortress';
+        castle.maxHp = cfg.hp;
+        castle.hp = cfg.hp;
+        castle.techTier = cfg.techTier as TechTier;
+        ai.techTier = 3;
+      }
+      // Build sanctum (T3)
+      if (!hasSanctum && ai.techTier >= 3 && hasChapel && res.wood >= 300 && res.gold >= 250) {
+        aiPlaceBuilding(state, castle, 'sanctum', 0);
+      }
+    }
+
+    // ── Build towers near base (max 2) ───────────────────────────────────
+    if (towerCount < 2 && hasBarracks && res.wood >= 100 && res.gold >= 80) {
+      aiPlaceBuilding(state, castle, 'tower', towerCount);
+    }
+
+    // ── Train army: barracks (melee mix) ─────────────────────────────────
+    const barracks = [...state.buildings.values()].find(
+      b => b.faction === 'red' && b.type === 'barracks' && !b.underConstruction
+    );
+    if (barracks && barracks.trainingQueue.length < 2) {
+      const roll = Math.random();
+      let unitType: UnitType = 'swordsman';
+      if (ai.techTier >= 2 && roll < 0.3) unitType = 'knight';
+      else if (ai.techTier >= 2 && roll < 0.5) unitType = 'orcWarrior';
+      else if (roll < 0.7) unitType = 'spearman';
+
+      const cfg = UNIT_CONFIGS[unitType];
+      if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
+          && res.food + cfg.foodCost <= res.maxFood) {
+        barracks.trainingQueue.push(unitType);
+        res.gold -= cfg.trainCost.gold;
+        res.wood -= cfg.trainCost.wood;
+      }
+    }
+
+    // ── Train army: archery (ranged) ─────────────────────────────────────
+    const archeryBld = [...state.buildings.values()].find(
+      b => b.faction === 'red' && b.type === 'archery' && !b.underConstruction
+    );
+    if (archeryBld && archeryBld.trainingQueue.length < 2) {
+      const unitType: UnitType = ai.techTier >= 2 && Math.random() < 0.4 ? 'musketeer' : 'bowman';
+      const cfg = UNIT_CONFIGS[unitType];
+      if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
+          && res.food + cfg.foodCost <= res.maxFood) {
+        archeryBld.trainingQueue.push(unitType);
+        res.gold -= cfg.trainCost.gold;
+        res.wood -= cfg.trainCost.wood;
+      }
+    }
+
+    // ── Train army: chapel (casters) ─────────────────────────────────────
+    const chapelBld = [...state.buildings.values()].find(
+      b => b.faction === 'red' && b.type === 'chapel' && !b.underConstruction
+    );
+    if (chapelBld && chapelBld.trainingQueue.length < 2) {
+      const unitType: UnitType = Math.random() < 0.5 ? 'mage' : 'orcHealer';
+      const cfg = UNIT_CONFIGS[unitType];
+      if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
+          && res.food + cfg.foodCost <= res.maxFood) {
+        chapelBld.trainingQueue.push(unitType);
+        res.gold -= cfg.trainCost.gold;
+        res.wood -= cfg.trainCost.wood;
+      }
+    }
+
+    // ── Train army: sanctum (elites) ─────────────────────────────────────
+    const sanctumBld = [...state.buildings.values()].find(
+      b => b.faction === 'red' && b.type === 'sanctum' && !b.underConstruction
+    );
+    if (sanctumBld && sanctumBld.trainingQueue.length < 1) {
+      const roll = Math.random();
+      const unitType: UnitType = roll < 0.3 ? 'minotaur' : roll < 0.6 ? 'demon' : roll < 0.9 ? 'mammoth' : 'dragon';
+      const cfg = UNIT_CONFIGS[unitType];
+      if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
+          && res.food + cfg.foodCost <= res.maxFood) {
+        sanctumBld.trainingQueue.push(unitType);
+        res.gold -= cfg.trainCost.gold;
+        res.wood -= cfg.trainCost.wood;
+      }
+    }
   }
 
-  // Train army from barracks
-  const barracks = [...state.buildings.values()].find(b => b.faction === 'red' && b.type === 'barracks' && !b.underConstruction);
-  if (barracks && barracks.trainingQueue.length < 3 && state.enemyResources.gold >= 135) {
-    barracks.trainingQueue.push('swordsman');
-    state.enemyResources.gold -= 135;
+  // ── Hero: summon and send to creep camps ──────────────────────────────
+  if ((ai.phase === 'creep' || ai.phase === 'expand') && heroCount === 0 && hasAltar && !ai.heroSummoned) {
+    const altar = [...state.buildings.values()].find(
+      b => b.faction === 'red' && b.type === 'altar' && !b.underConstruction
+    );
+    if (altar) {
+      const pos = { x: altar.pos.x + 60, y: altar.pos.y + 60 };
+      const hero = spawnUnit(state, 'red', 'arthax', pos, true);
+      if (hero) ai.heroSummoned = true;
+    }
   }
 
-  // Attack periodically
-  if (ai.attackTimer > 60 + Math.random() * 30 && armyCount >= 4) {
+  // Send idle heroes to clear nearby creep camps
+  for (const hero of aiHeroes) {
+    if (hero.state === 'idle' && !hero.attackTargetId) {
+      const camp = findNearestUnclearedCamp(state, hero.pos);
+      if (camp) {
+        let nearestCreep: Unit | null = null;
+        let nearestDist = Infinity;
+        for (const [, u] of state.units) {
+          if (u.faction === 'neutral' && u.state !== 'dead' && dist(u.pos, camp.pos) < 150) {
+            const d = dist(hero.pos, u.pos);
+            if (d < nearestDist) { nearestDist = d; nearestCreep = u; }
+          }
+        }
+        if (nearestCreep) {
+          hero.attackTargetId = nearestCreep.id;
+        } else {
+          hero.target = { ...camp.pos };
+          hero.waypoints = computePathWaypoints(state.islands, hero.pos, camp.pos);
+          if (hero.waypoints.length > 0) hero.target = hero.waypoints.shift()!;
+          hero.state = 'moving';
+        }
+      }
+    }
+  }
+
+  // ── Attack waves (uses map's aiAttackInterval) ────────────────────────
+  const attackInterval = ai.aiAttackInterval * (ai.phase === 'push' ? 0.5 : ai.phase === 'harass' ? 0.7 : 1.0);
+  const minArmy = ai.phase === 'push' ? 3 : ai.phase === 'harass' ? 5 : 6;
+
+  if (ai.attackTimer > attackInterval && armyCount >= minArmy) {
     ai.attackTimer = 0;
-    const blueCastle = [...state.buildings.values()].find(b => b.faction === 'blue' && (b.type === 'castle' || b.type === 'keep' || b.type === 'fortress'));
+    const blueCastle = [...state.buildings.values()].find(
+      b => b.faction === 'blue' && (b.type === 'castle' || b.type === 'keep' || b.type === 'fortress')
+    );
     if (blueCastle) {
       for (const [, u] of state.units) {
-        if (u.faction === 'red' && u.role !== 'worker' && u.state !== 'dead') {
-          u.attackTargetId = null; // Clear current target, find nearest blue unit
+        if (u.faction === 'red' && u.role !== 'worker' && u.state !== 'dead' && !u.isHero) {
+          u.attackTargetId = null;
           let nearestEnemy: Unit | null = null;
           let nearestDist = Infinity;
           for (const [, e] of state.units) {
@@ -763,18 +1028,55 @@ function updateAI(state: GameState, dt: number): void {
           }
         }
       }
+      // Heroes join push waves
+      if (ai.phase === 'push') {
+        for (const hero of aiHeroes) {
+          if (hero.state !== 'dead') {
+            hero.attackTargetId = null;
+            hero.target = { ...blueCastle.pos };
+            hero.waypoints = computePathWaypoints(state.islands, hero.pos, blueCastle.pos);
+            if (hero.waypoints.length > 0) hero.target = hero.waypoints.shift()!;
+            hero.state = 'moving';
+          }
+        }
+      }
     }
   }
 
-  // Auto-harvest: idle workers seek resources
+  // ── Auto-harvest: idle workers seek resources (prefer gold when low) ────
   for (const [, u] of state.units) {
     if (u.faction !== 'red' || u.role !== 'worker' || u.state !== 'idle' || u.buildTargetId) continue;
+    // Return carried resources first
+    if (u.carryAmount > 0 && !u.returnToId) {
+      const th = findNearestTownHall(state, 'red', u.pos);
+      if (th) {
+        u.returnToId = th.id;
+        u.target = { ...th.pos };
+        u.waypoints = computePathWaypoints(state.islands, u.pos, th.pos);
+        if (u.waypoints.length > 0) u.target = u.waypoints.shift()!;
+        u.state = 'moving';
+      }
+      continue;
+    }
+
+    const preferGold = res.gold < 300;
     let nearestRes: Resource | null = null;
     let nearestDist = Infinity;
+    // First pass: preferred resource type
     for (const [, r] of state.resources) {
       if (r.amount <= 0) continue;
+      if (preferGold && r.type !== 'goldmine') continue;
       const d = dist(u.pos, r.pos);
       if (d < nearestDist) { nearestDist = d; nearestRes = r; }
+    }
+    // Fallback: any resource
+    if (!nearestRes) {
+      nearestDist = Infinity;
+      for (const [, r] of state.resources) {
+        if (r.amount <= 0) continue;
+        const d = dist(u.pos, r.pos);
+        if (d < nearestDist) { nearestDist = d; nearestRes = r; }
+      }
     }
     if (nearestRes) {
       u.harvestTargetId = nearestRes.id;
