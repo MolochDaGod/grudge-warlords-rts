@@ -12,6 +12,8 @@ import {
 import { MapDef } from './maps';
 import { computePathWaypoints, isOnIsland } from './pathfinding';
 import { HIT_VFX, randomRetroCrit } from './vfx';
+import { fxController } from './fx-controller';
+import { getUnitDisplay } from './unit-defaults';
 
 let _nextId = 1;
 function uid(): string { return String(_nextId++); }
@@ -120,6 +122,7 @@ function grantXp(unit: Unit, xp: number, state: GameState): void {
     // Level up VFX
     state.vfxEffects.set(uid(), { id: uid(), pos: { ...unit.pos }, type: 'level_up', age: 0, duration: 1.2 });
     state.floatingTexts.push({ id: uid(), pos: { ...unit.pos }, text: `Level ${unit.heroLevel}!`, color: '#ffd700', age: 0, maxAge: 2 });
+    fxController.playLevelUp({ ...unit.pos });
   }
 }
 
@@ -362,9 +365,11 @@ export function updateGame(state: GameState, dt: number): void {
               text: `-${totalDmg}`, color: unit.faction === 'blue' ? '#ff4444' : '#ff8800',
               age: 0, maxAge: 1,
             });
-            // Hit VFX
+            // Hit VFX + particles
             const vfxType = HIT_VFX[unit.type] ?? randomRetroCrit();
             state.vfxEffects.set(uid(), { id: uid(), pos: { ...target.pos }, type: vfxType, age: 0, duration: 0.3 });
+            const display = getUnitDisplay(unit.type);
+            fxController.playHit({ ...target.pos }, display.projectile, state);
 
             if (target.hp <= 0) killUnit(state, target, unit);
           }
@@ -567,6 +572,9 @@ export function updateGame(state: GameState, dt: number): void {
 function killUnit(state: GameState, unit: Unit, killer: Unit | null): void {
   unit.state = 'dead';
   unit.hp = 0;
+
+  // Death FX particles + audio
+  fxController.playDeath({ ...unit.pos }, unit.isHero, state);
 
   if (killer) {
     killer.kills++;

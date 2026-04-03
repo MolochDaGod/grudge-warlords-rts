@@ -6,6 +6,7 @@ import { Play, Pause, RotateCcw } from 'lucide-react';
 import { createInitialState, updateGame, commandMove, commandAttack, commandHarvest, commandBuild, commandTrain, commandSummonHero, commandUpgradeTownHall } from '@/lib/rts-engine/engine';
 import { renderGame } from '@/lib/rts-engine/renderer';
 import { MAPS } from '@/lib/rts-engine/maps';
+import { fxController } from '@/lib/rts-engine/fx-controller';
 import { BUILDING_CONFIGS, HERO_CONFIGS, UNIT_CONFIGS } from '@/lib/rts-engine/constants';
 import type { GameState, Vec2, BuildingType, UnitType } from '@/lib/rts-engine/types';
 
@@ -55,7 +56,10 @@ export function GameCanvas() {
           if (u.state !== 'dead') u.anim.elapsed += dt;
         }
         updateGame(stateRef.current, dt);
+        fxController.update(dt);
         renderGame(ctx, stateRef.current, CANVAS_W, CANVAS_H, dt);
+        // Render particles on top
+        fxController.renderParticles(ctx, stateRef.current.camera.x, stateRef.current.camera.y, stateRef.current.zoom);
       }
 
       fpsCounter++;
