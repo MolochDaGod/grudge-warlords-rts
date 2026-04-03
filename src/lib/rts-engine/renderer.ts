@@ -1,6 +1,7 @@
 import type { GameState, Unit, Building, Resource, Island, Projectile, VfxEffect } from './types';
-import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, getUnitSprites, getLegionSprites, DAY_DURATION, CYCLE_LENGTH } from './constants';
+import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, getUnitSprites, getLegionSprites, getBuildingSprite, DAY_DURATION, CYCLE_LENGTH } from './constants';
 import { VFX_CONFIGS } from './vfx';
+import { getUnitDisplay, getBuildingDisplay } from './unit-defaults';
 
 // ── Image cache ────────────────────────────────────────────────────────────────
 const _imgCache = new Map<string, HTMLImageElement>();
@@ -203,14 +204,33 @@ function drawBuilding(ctx: CanvasRenderingContext2D, bld: Building) {
   const alpha = bld.underConstruction ? 0.5 + 0.5 * bld.constructionProgress : 1;
   ctx.globalAlpha = alpha;
 
-  // Building body
-  ctx.fillStyle = bld.faction === 'blue' ? '#1e3a5f' : bld.faction === 'red' ? '#5f1e1e' : '#3f3f3f';
-  ctx.beginPath();
-  roundRect(ctx, bld.pos.x, bld.pos.y, w, h, 6);
-  ctx.fill();
-  ctx.strokeStyle = FACTION_COLORS[bld.faction];
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  // Try Miniworld sprite rendering
+  const sprite = getBuildingSprite(bld.faction as 'blue' | 'red' | 'neutral', bld.type);
+  const sprImg = sprite ? loadImg(sprite.sheet) : null;
+
+  if (sprite && sprImg) {
+    // Render building from spritesheet with correct frame extraction
+    ctx.drawImage(
+      sprImg,
+      sprite.sx, sprite.sy, sprite.sw, sprite.sh,  // Source rect
+      bld.pos.x, bld.pos.y, w, h,                  // Destination rect
+    );
+  } else {
+    // Fallback: colored rectangle
+    ctx.fillStyle = bld.faction === 'blue' ? '#1e3a5f' : bld.faction === 'red' ? '#5f1e1e' : '#3f3f3f';
+    ctx.beginPath();
+    roundRect(ctx, bld.pos.x, bld.pos.y, w, h, 6);
+    ctx.fill();
+    ctx.strokeStyle = FACTION_COLORS[bld.faction];
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Building name (only for fallback)
+    ctx.fillStyle = '#e4e4e7';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(bld.type.toUpperCase(), bld.pos.x + w / 2, bld.pos.y + h / 2 + 4);
+    ctx.textAlign = 'left';
+  }
 
   // Construction progress bar
   if (bld.underConstruction) {
@@ -220,13 +240,6 @@ function drawBuilding(ctx: CanvasRenderingContext2D, bld: Building) {
     ctx.strokeRect(bld.pos.x, bld.pos.y + h + 2, w, 4);
   }
 
-  // Building name
-  ctx.fillStyle = '#e4e4e7';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(bld.type.toUpperCase(), bld.pos.x + w / 2, bld.pos.y + h / 2 + 4);
-  ctx.textAlign = 'left';
-
   // HP bar
   const hpPct = bld.hp / bld.maxHp;
   ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
@@ -234,6 +247,39 @@ function drawBuilding(ctx: CanvasRenderingContext2D, bld: Building) {
   ctx.strokeStyle = '#333';
   ctx.lineWidth = 0.5;
   ctx.strokeRect(bld.pos.x, bld.pos.y - 6, w, 4);
+
+  // ── Building damage FX: fire below 50%, heavy smoke + fire below 25% ──────
+  if (!bld.underConstruction && hpPct < 0.5) {
+    const fireCfg = VFX_CONFIGS['building_fire'];
+    const fireImg = loadImg(fireCfg.src);
+    if (fireImg) {
+      const t = performance.now() / 1000;
+      const frame = Math.floor((t * 3) % fireCfg.cols);
+      const fireAlpha = hpPct < 0.25 ? 0.9 : 0.5;
+      ctx.globalAlpha = fireAlpha;
+      ctx.drawImage(fireImg, frame * fireCfg.frameW, 0, fireCfg.frameW, fireCfg.frameH,
+        bld.pos.x + w * 0.2, bld.pos.y - 10, fireCfg.displaySize, fireCfg.displaySize);
+      // Second fire source on large buildings
+      if (w > 64) {
+        ctx.drawImage(fireImg, ((frame + 2) % fireCfg.cols) * fireCfg.frameW, 0, fireCfg.frameW, fireCfg.frameH,
+          bld.pos.x + w * 0.6, bld.pos.y + h * 0.1, fireCfg.displaySize * 0.8, fireCfg.displaySize * 0.8);
+      }
+    }
+    // Heavy smoke below 25%
+    if (hpPct < 0.25) {
+      const smokeCfg = VFX_CONFIGS['building_smoke'];
+      const smokeImg = loadImg(smokeCfg.src);
+      if (smokeImg) {
+        const t = performance.now() / 1000;
+        const sFrame = Math.floor((t * 2) % smokeCfg.cols);
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(smokeImg, sFrame * smokeCfg.frameW, 0, smokeCfg.frameW, smokeCfg.frameH,
+          bld.pos.x + w * 0.3, bld.pos.y - 20, smokeCfg.displaySize, smokeCfg.displaySize);
+      }
+    }
+  }
+
+  ctx.globalAlpha = 1;
 
   // Training progress
   if (bld.trainingQueue.length > 0) {
@@ -245,13 +291,21 @@ function drawBuilding(ctx: CanvasRenderingContext2D, bld: Building) {
     ctx.fillText(`Training: ${bld.trainingQueue[0]}`, bld.pos.x + w / 2, bld.pos.y + h + 20);
     ctx.textAlign = 'left';
   }
-
-  ctx.globalAlpha = 1;
 }
 
 function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
-  const size = unit.isHero ? 48 : 32;
+  const display = getUnitDisplay(unit.type);
+  const baseSize = unit.isHero ? 48 : 32;
+  const size = Math.round(baseSize * display.scale);
   const half = size / 2;
+
+  // Shadow
+  if (display.shadow > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(unit.pos.x, unit.pos.y + half * 0.5, half * 0.6, half * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Try sprite rendering
   const faction = unit.faction === 'blue' ? 'blue' : 'red';

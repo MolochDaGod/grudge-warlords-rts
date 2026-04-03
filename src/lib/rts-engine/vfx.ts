@@ -18,7 +18,9 @@ export type VfxType =
   | 'retro_white_a' | 'retro_white_b' | 'retro_white_c'
   | 'retro_orange_a' | 'retro_orange_b'
   // WC3-specific
-  | 'level_up' | 'hero_revive' | 'item_drop';
+  | 'level_up' | 'hero_revive' | 'item_drop'
+  // Building damage
+  | 'building_fire' | 'building_smoke' | 'firespin' | 'vortex';
 
 export interface VfxConfig {
   src: string;
@@ -75,6 +77,11 @@ export const VFX_CONFIGS: Record<VfxType, VfxConfig> = {
   level_up:         { src:`${CUSTOM}/holyheal.png`,   cols:1, frameW:128, frameH:128, displaySize:100, duration:1.2, singleFrame:true, growing:true },
   hero_revive:      { src:`${BASE}/holy_vfx_02.png`,  cols:8, frameW:64,  frameH:64,  displaySize:96,  duration:1.5 },
   item_drop:        { src:`${RETRO}/impactYellowA.png`,cols:1, frameW:200, frameH:200, displaySize:48,  duration:0.5, singleFrame:true },
+  // Building damage VFX
+  building_fire:    { src:`${BASE}/pixel/11_fire_spritesheet.png`,   cols:6, frameW:32, frameH:32, displaySize:48,  duration:2.0, looping:true },
+  building_smoke:   { src:`${BASE}/pixel/smoke_vfx1.png`,            cols:4, frameW:32, frameH:32, displaySize:40,  duration:2.5, looping:true },
+  firespin:         { src:`${BASE}/pixel/7_firespin_spritesheet.png`, cols:6, frameW:32, frameH:32, displaySize:64,  duration:3.0, looping:true },
+  vortex:           { src:`${BASE}/pixel/13_vortex_spritesheet.png`,  cols:6, frameW:32, frameH:32, displaySize:72,  duration:4.0, looping:true },
 };
 
 export const HIT_VFX: Partial<Record<string, VfxType>> = {

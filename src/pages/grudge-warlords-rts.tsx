@@ -10,6 +10,7 @@ import { NodePalette } from '@/components/game-designer/NodePalette';
 import { PropertiesPanel } from '@/components/game-designer/PropertiesPanel';
 import { GameCanvas } from '@/components/game-designer/GameCanvas';
 import { RTSMapEditor } from '@/components/rts-map-editor';
+import { AdminCompendium } from '@/components/admin-compendium';
 import type { DesignerNode, Connection, NodeTemplate, DesignDocument } from '@/lib/rts-engine/designer-types';
 import { NODE_DEFAULTS } from '@/lib/rts-engine/designer-types';
 
@@ -171,92 +172,8 @@ export default function GrudgeWarlordsRTS() {
         </TabsContent>
 
         {/* Admin Tab */}
-        <TabsContent value="admin" className="flex-1 p-4 overflow-auto m-0">
-          <div className="max-w-5xl mx-auto space-y-4">
-            <h2 className="text-xl font-bold">Design Overview</h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { label: 'Buildings', count: buildingNodes.length, color: '#92400e' },
-                { label: 'Units', count: unitNodes.length, color: '#1e40af' },
-                { label: 'Heroes', count: heroNodes.length, color: '#7c3aed' },
-                { label: 'Spells', count: spellNodes.length, color: '#be123c' },
-                { label: 'Upgrades', count: upgradeNodes.length, color: '#047857' },
-              ].map(s => (
-                <Card key={s.label} className="bg-zinc-900 border-zinc-700">
-                  <CardContent className="pt-4 text-center">
-                    <div className="text-3xl font-bold" style={{ color: s.color }}>{s.count}</div>
-                    <div className="text-xs text-zinc-400 mt-1">{s.label}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card className="bg-zinc-900 border-zinc-700">
-              <CardHeader><CardTitle className="text-sm">Connection Summary</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div><span className="text-green-400 font-bold">{trainConns.length}</span> Train connections</div>
-                  <div><span className="text-amber-400 font-bold">{reqConns.length}</span> Require connections</div>
-                  <div><span className="text-blue-400 font-bold">{connections.filter(c => c.type === 'unlocks').length}</span> Unlock connections</div>
-                  <div><span className="text-purple-400 font-bold">{connections.filter(c => c.type === 'enables').length}</span> Enable connections</div>
-                  <div><span className="text-pink-400 font-bold">{connections.filter(c => c.type === 'has_ability').length}</span> Ability connections</div>
-                  <div><span className="text-zinc-400 font-bold">{connections.length}</span> Total</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tech Tree by Tier */}
-            <Card className="bg-zinc-900 border-zinc-700">
-              <CardHeader><CardTitle className="text-sm">Tech Tree by Tier</CardTitle></CardHeader>
-              <CardContent>
-                {[1, 2, 3].map(tier => {
-                  const tierNodes = nodes.filter(n => n.tier === tier);
-                  return (
-                    <div key={tier} className="mb-3">
-                      <div className="text-xs font-bold text-zinc-400 mb-1">Tier {tier}</div>
-                      <div className="flex flex-wrap gap-2">
-                        {tierNodes.map(n => (
-                          <Badge key={n.id} variant="outline" style={{ borderColor: n.color }}
-                            className="text-[10px] gap-1">
-                            {n.icon} {n.name}
-                          </Badge>
-                        ))}
-                        {tierNodes.length === 0 && <span className="text-zinc-600 text-[10px]">No nodes at this tier</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Unit Balance Table */}
-            <Card className="bg-zinc-900 border-zinc-700">
-              <CardHeader><CardTitle className="text-sm">Unit Balance Overview</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-xs">
-                  <div className="grid grid-cols-7 gap-2 text-zinc-500 font-bold border-b border-zinc-700 pb-1">
-                    <div>Name</div><div>HP</div><div>DMG</div><div>ARM</div><div>SPD</div><div>Gold</div><div>DPS/Gold</div>
-                  </div>
-                  {unitNodes.map(n => {
-                    const hp = Number(n.stats.hp) || 0;
-                    const dmg = Number(n.stats.damage) || 0;
-                    const spd = Number(n.stats.speed) || 0;
-                    const arm = Number(n.stats.armor) || 0;
-                    const gold = n.cost?.gold || 1;
-                    const dpsPerGold = ((dmg / gold) * 100).toFixed(1);
-                    return (
-                      <div key={n.id} className="grid grid-cols-7 gap-2 text-zinc-300 py-0.5">
-                        <div className="truncate">{n.icon} {n.name}</div>
-                        <div>{hp}</div><div>{dmg}</div><div>{arm}</div><div>{spd}</div>
-                        <div className="text-yellow-400">{gold}</div>
-                        <div className="text-green-400">{dpsPerGold}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="admin" className="flex-1 min-h-0 m-0">
+          <AdminCompendium />
         </TabsContent>
       </Tabs>
     </div>
