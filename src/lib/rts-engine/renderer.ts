@@ -5,7 +5,7 @@ import { getUnitDisplay, getBuildingDisplay } from './unit-defaults';
 import { spriteLoader, PRIORITY } from './sprite-loader';
 
 // ── Image loading via SpriteLoader (replaces raw cache) ────────────────────────
-function loadImg(src: string, priority = PRIORITY.UNIT): HTMLImageElement | null {
+function loadImg(src: string, priority: number = PRIORITY.UNIT): HTMLImageElement | null {
   return spriteLoader.get(src, priority);
 }
 

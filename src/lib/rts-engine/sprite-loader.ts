@@ -58,7 +58,7 @@ class SpriteLoader {
   private _totalFailed = 0;
 
   /** Get an image if it's fully loaded, otherwise return null and trigger loading */
-  get(src: string, priority = PRIORITY.UNIT): HTMLImageElement | null {
+  get(src: string, priority: number = PRIORITY.UNIT): HTMLImageElement | null {
     const entry = this.cache.get(src);
 
     if (entry) {
@@ -86,7 +86,7 @@ class SpriteLoader {
   }
 
   /** Preload a batch of URLs with a given priority. Non-blocking. */
-  preload(urls: string[], priority = PRIORITY.UNIT): void {
+  preload(urls: string[], priority: number = PRIORITY.UNIT): void {
     for (const src of urls) {
       if (!this.cache.has(src)) {
         this.createEntry(src, priority);
@@ -249,9 +249,11 @@ class SpriteLoader {
         if (entry.retries >= MAX_RETRIES) {
           entry.state = 'failed';
           this._totalFailed++;
-          if (import.meta.env.DEV) {
-            console.warn(`[SpriteLoader] Failed after ${MAX_RETRIES} retries: ${src}`);
-          }
+          try {
+            if ((import.meta as any).env?.DEV) {
+              console.warn(`[SpriteLoader] Failed after ${MAX_RETRIES} retries: ${src}`);
+            }
+          } catch {}
         } else {
           entry.state = 'pending';
           // Re-enqueue with backoff (handled by get() on next access)
