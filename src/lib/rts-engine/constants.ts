@@ -199,91 +199,130 @@ export const PRIEST_HEAL_RANGE = 140;
 export const PRIEST_HEAL_AMOUNT = 18;
 export const PRIEST_HEAL_PULSE = 2.5;
 
-// ── Legion CDN sprites ─────────────────────────────────────────────────────────
-function legionSprite(path: string, frames = 4, msPerFrame = 120): SpriteConfig {
-  return { src: `${CDN}${path}`, frameW: 48, frameH: 48, frames, msPerFrame };
+// ── Sprite System — All assets from ObjectStore CDN ────────────────────────────
+
+/** Standard 48×48 spritesheet config from ObjectStore */
+function cdnSprite(path: string, frames = 4, msPerFrame = 120, frameW = 48, frameH = 48): SpriteConfig {
+  return { src: `${CDN}${path}`, frameW, frameH, frames, msPerFrame };
 }
 
+/**
+ * Sprite path mapping — maps every unit type to its ObjectStore CDN location.
+ * Naming convention on CDN: idle.png, walk.png, attack1.png, death.png, hurt.png
+ */
+interface SpriteMapping {
+  folder: string;       // Path under CDN root, e.g. '/sprites/characters/soldier'
+  frameW?: number;      // Override default 48
+  frameH?: number;      // Override default 48
+  idleFrames?: number;
+  walkFrames?: number;
+  attackFrames?: number;
+  /** Override filenames when they don't follow idle/walk/attack1 convention */
+  idleFile?: string;
+  walkFile?: string;
+  attackFile?: string;
+}
+
+const SPRITE_MAP: Partial<Record<string, SpriteMapping>> = {
+  // ── Kingdom (Blue) units ──────────────────────────────────────────────────
+  pawn:         { folder: '/sprites/characters/soldier' },
+  farmer:       { folder: '/sprites/characters/soldier' },
+  swordsman:    { folder: '/sprites/characters/swordsman' },
+  spearman:     { folder: '/sprites/characters/lancer' },
+  axeman:       { folder: '/sprites/characters/barbarian-warrior' },
+  bowman:       { folder: '/sprites/characters/archer' },
+  musketeer:    { folder: '/sprites/enemies/crossbowman', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  knight:       { folder: '/sprites/characters/knight' },
+  assasin:      { folder: '/sprites/characters/dark-knight' },
+  mage:         { folder: '/sprites/characters/human-mage' },
+  necromancer:  { folder: '/sprites/characters/necromancer' },
+  ballista:     { folder: '/sprites/characters/soldier' },
+
+  // ── Legion (Red) units ────────────────────────────────────────────────────
+  orcPawn:      { folder: '/sprites/characters/orc' },
+  orcWarrior:   { folder: '/sprites/enemies/armored-orc' },
+  orcSpearman:  { folder: '/sprites/characters/elite-orc' },
+  orcArcher:    { folder: '/sprites/enemies/skeleton-archer' },
+  orcHealer:    { folder: '/sprites/enemies/evil-wizard-2' },
+  orcMage:      { folder: '/sprites/characters/fire-wizard' },
+
+  // ── Heroes ────────────────────────────────────────────────────────────────
+  warrior:      { folder: '/sprites/characters/fantasy-warrior' },
+  archer:       { folder: '/sprites/characters/archer' },
+  lancer:       { folder: '/sprites/characters/lancer' },
+  priest:       { folder: '/sprites/characters/priest' },
+  arthax:       { folder: '/sprites/characters/fantasy-warrior' },
+  kanji:        { folder: '/sprites/characters/human-mage' },
+  katan:        { folder: '/sprites/characters/archer' },
+  grum:         { folder: '/sprites/characters/knight' },
+
+  // ── Champions (Sanctum T3) ────────────────────────────────────────────────
+  minotaur:     { folder: '/sprites/characters/barbarian-warrior' },
+  demon:        { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+  mammoth:      { folder: '/sprites/characters/frost-guardian' },
+  dragon:       { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+
+  // ── Creep / Neutral Monsters ──────────────────────────────────────────────
+  goblin:           { folder: '/sprites/characters/orc' },
+  spearGoblin:      { folder: '/sprites/characters/elite-orc' },
+  archerGoblin:     { folder: '/sprites/enemies/skeleton-archer' },
+  orc:              { folder: '/sprites/enemies/armored-orc' },
+  skeleton:         { folder: '/sprites/enemies/skeleton' },
+  slime:            { folder: '/sprites/enemies/slime' },
+  yeti:             { folder: '/sprites/characters/frost-guardian' },
+  fireElemental:    { folder: '/sprites/characters/fire-wizard' },
+  desertScorpio:    { folder: '/sprites/enemies/stormhead', attackFile: 'attack.png', walkFile: 'run.png' },
+  ogreBoss:         { folder: '/sprites/boss-demon', attackFile: 'cleave.png' },
+  steampunkMech:    { folder: '/sprites/characters/frost-guardian' },
+  desertVulture:    { folder: '/sprites/enemies/desert-vulture', attackFile: 'attack.png' },
+  mimic:            { folder: '/sprites/enemies/skeleton-enemy' },
+  mineElemental:    { folder: '/sprites/characters/forest-guardian' },
+  pirateCaptainHero:{ folder: '/sprites/characters/dark-knight' },
+  orcShaman:        { folder: '/sprites/enemies/bandit-necro' },
+  pirate:           { folder: '/sprites/characters/soldier' },
+  pirateGunner:     { folder: '/sprites/enemies/crossbowman', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  pirateCaptain:    { folder: '/sprites/characters/dark-knight' },
+  wendigo:          { folder: '/sprites/characters/werebear' },
+  kamikazeGoblin:   { folder: '/sprites/characters/orc' },
+  farmerGoblin:     { folder: '/sprites/characters/orc' },
+  slimeBlue:        { folder: '/sprites/enemies/slime' },
+  megaSlime:        { folder: '/sprites/enemies/slime' },
+  megaSlimeBlue:    { folder: '/sprites/enemies/slime' },
+  kingSlime:        { folder: '/sprites/enemies/slime' },
+  kingSlimeGreen:   { folder: '/sprites/enemies/slime' },
+  blackDragon:      { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  blueDragon:       { folder: '/sprites/dragon-white', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  whiteDragon:      { folder: '/sprites/dragon-white', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  yellowDragon:     { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  giantCrab:        { folder: '/sprites/enemies/stormhead', attackFile: 'attack.png', walkFile: 'run.png' },
+  armouredDemon:    { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+  purpleDemon:      { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+};
+
+/** Kept for backward compat — returns same as getUnitSprites */
 export function getLegionSprites(type: UnitType): Record<string, SpriteConfig> {
-  switch (type) {
-    case 'orcPawn':
-      return {
-        idle: legionSprite('/sprites/characters/orc/idle.png', 4, 200),
-        run: legionSprite('/sprites/characters/orc/run.png', 4, 130),
-        attack: legionSprite('/sprites/characters/orc/attack.png', 4, 110),
-      };
-    case 'orcWarrior':
-      return {
-        idle: legionSprite('/sprites/enemies/armored-orc/idle.png', 4, 200),
-        run: legionSprite('/sprites/enemies/armored-orc/run.png', 4, 130),
-        attack: legionSprite('/sprites/enemies/armored-orc/attack.png', 4, 110),
-      };
-    case 'orcSpearman':
-      return {
-        idle: legionSprite('/sprites/characters/elite-orc/idle.png', 4, 200),
-        run: legionSprite('/sprites/characters/elite-orc/run.png', 4, 130),
-        attack: legionSprite('/sprites/characters/elite-orc/attack.png', 4, 110),
-      };
-    case 'orcArcher':
-      return {
-        idle: legionSprite('/sprites/enemies/skeleton-archer/idle.png', 4, 200),
-        run: legionSprite('/sprites/enemies/skeleton-archer/run.png', 4, 130),
-        attack: legionSprite('/sprites/enemies/skeleton-archer/attack.png', 6, 90),
-      };
-    case 'orcHealer':
-      return {
-        idle: legionSprite('/sprites/enemies/evil-wizard-2/idle.png', 4, 200),
-        run: legionSprite('/sprites/enemies/evil-wizard-2/run.png', 4, 130),
-        attack: legionSprite('/sprites/enemies/evil-wizard-2/attack.png', 6, 80),
-      };
-    default:
-      return {};
-  }
+  return getUnitSprites('red', type);
 }
 
-export function getUnitSprites(faction: 'blue' | 'red', type: UnitType): Record<string, SpriteConfig> {
-  const color = faction === 'blue' ? 'Blue' : 'Red';
-  const base = `/assets/Units/${color}_Units/`;
-  if (type === 'warrior' || type === 'arthax') {
-    return {
-      idle:   { src: `${base}Warrior/Warrior_Idle.png`, frameW: 192, frameH: 192, frames: 8, msPerFrame: 300 },
-      run:    { src: `${base}Warrior/Warrior_Run.png`, frameW: 192, frameH: 192, frames: 6, msPerFrame: 200 },
-      attack: { src: `${base}Warrior/Warrior_Attack1.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 100 },
-    };
-  }
-  if (type === 'archer' || type === 'katan') {
-    return {
-      idle:   { src: `${base}Archer/Archer_Idle.png`, frameW: 192, frameH: 192, frames: 6, msPerFrame: 300 },
-      run:    { src: `${base}Archer/Archer_Run.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 200 },
-      attack: { src: `${base}Archer/Archer_Shoot.png`, frameW: 192, frameH: 192, frames: 8, msPerFrame: 100 },
-    };
-  }
-  if (type === 'pawn' || type === 'farmer') {
-    return {
-      idle:    { src: `${base}Pawn/Pawn_Idle.png`, frameW: 192, frameH: 192, frames: 8, msPerFrame: 300 },
-      run:     { src: `${base}Pawn/Pawn_Run.png`, frameW: 192, frameH: 192, frames: 6, msPerFrame: 200 },
-      attack:  { src: `${base}Pawn/Pawn_Attack.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 100 },
-      interact:{ src: `${base}Pawn/Pawn_Chop.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 120 },
-    };
-  }
-  if (type === 'lancer' || type === 'grum') {
-    return {
-      idle:   { src: `${base}Lancer/Lancer_Idle.png`, frameW: 320, frameH: 320, frames: 4, msPerFrame: 300 },
-      run:    { src: `${base}Lancer/Lancer_Run.png`, frameW: 320, frameH: 320, frames: 6, msPerFrame: 200 },
-      attack: { src: `${base}Lancer/Lancer_Attack.png`, frameW: 320, frameH: 320, frames: 4, msPerFrame: 100 },
-    };
-  }
-  if (type === 'priest' || type === 'kanji') {
-    return {
-      idle:   { src: `${base}Archer/Archer_Idle.png`, frameW: 192, frameH: 192, frames: 6, msPerFrame: 300 },
-      run:    { src: `${base}Archer/Archer_Run.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 200 },
-      attack: { src: `${base}Archer/Archer_Shoot.png`, frameW: 192, frameH: 192, frames: 8, msPerFrame: 100 },
-    };
-  }
-  // fallback — generic soldier
+/**
+ * Unified sprite resolver — all units, all factions, sourced from ObjectStore CDN.
+ * Falls back to colored circle rendering in the renderer if no sprites found.
+ */
+export function getUnitSprites(_faction: 'blue' | 'red', type: UnitType): Record<string, SpriteConfig> {
+  const mapping = SPRITE_MAP[type];
+  if (!mapping) return {};
+
+  const fw = mapping.frameW ?? 48;
+  const fh = mapping.frameH ?? 48;
+
+  const idleFile   = mapping.idleFile   ?? 'idle.png';
+  const walkFile   = mapping.walkFile   ?? 'walk.png';
+  const attackFile = mapping.attackFile ?? 'attack1.png';
+
   return {
-    idle:   { src: `${base}Warrior/Warrior_Idle.png`, frameW: 192, frameH: 192, frames: 8, msPerFrame: 300 },
-    run:    { src: `${base}Warrior/Warrior_Run.png`, frameW: 192, frameH: 192, frames: 6, msPerFrame: 200 },
-    attack: { src: `${base}Warrior/Warrior_Attack1.png`, frameW: 192, frameH: 192, frames: 4, msPerFrame: 100 },
+    idle:     cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames   ?? 4, 200, fw, fh),
+    run:      cdnSprite(`${mapping.folder}/${walkFile}`,   mapping.walkFrames   ?? 4, 130, fw, fh),
+    attack:   cdnSprite(`${mapping.folder}/${attackFile}`, mapping.attackFrames ?? 4, 110, fw, fh),
+    interact: cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames   ?? 4, 120, fw, fh),
   };
 }
