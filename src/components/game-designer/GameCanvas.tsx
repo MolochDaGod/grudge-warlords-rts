@@ -400,31 +400,88 @@ export function GameCanvas() {
   // ══════════════════════════════════════════════════════════════════════════════
   if (phase === 'menu') {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-white p-8">
-        <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-red-500">Grudge Warlords RTS</h1>
-        <p className="text-zinc-400 mb-8">WC3-Style Real-Time Strategy</p>
-        <div className="flex gap-4 mb-6 flex-wrap justify-center">
+      <div className="flex flex-col items-center justify-center h-full text-white p-8 relative overflow-hidden"
+        style={{ background: 'linear-gradient(180deg, #2d8a9e 0%, #3a9fbf 30%, #4db8d1 70%, #3a9fbf 100%)' }}>
+        {/* Decorative water shimmer */}
+        <div className="absolute inset-0 opacity-[0.06]" style={{
+          backgroundImage: 'radial-gradient(ellipse 80px 20px at 50% 50%, #fff 0%, transparent 70%)',
+          backgroundSize: '120px 80px',
+          animation: 'none',
+        }} />
+
+        {/* Title badge — shield style inspired by Tiny Swords */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-600 to-zinc-800 rounded-2xl transform rotate-1 scale-105 opacity-40" />
+          <div className="relative bg-gradient-to-b from-zinc-700/90 to-zinc-800/90 border-2 border-zinc-500/50 rounded-2xl px-10 py-5 shadow-2xl">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-600 border border-zinc-500 rounded-full px-4 py-0.5">
+              <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">WC3-Style RTS</span>
+            </div>
+            <h1 className="text-5xl font-black tracking-tight">
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600"
+                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)', WebkitTextStroke: '1px rgba(139,69,19,0.3)' }}>
+                Grudge
+              </span>
+              {' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-red-400 via-red-500 to-red-700"
+                style={{ fontStyle: 'italic' }}>
+                Warlords
+              </span>
+            </h1>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+              <span className="text-xs text-amber-400/80 font-semibold">REAL-TIME STRATEGY</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            </div>
+          </div>
+        </div>
+
+        {/* Map selection — island cards */}
+        <div className="flex gap-3 mb-5 flex-wrap justify-center">
           {MAPS.map((m, i) => (
-            <Card key={m.id} className={`cursor-pointer w-48 ${i === selectedMap ? 'border-amber-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-900'}`} onClick={() => setSelectedMap(i)}>
-              <CardContent className="pt-4 text-center">
-                <div className="text-3xl mb-2">{m.thumbnail}</div>
-                <div className="font-bold text-sm">{m.name}</div>
-                <div className="text-xs text-zinc-400">{m.subtitle}</div>
-                <div className="text-[10px] text-zinc-500 mt-2">{m.description.slice(0, 80)}...</div>
+            <Card key={m.id}
+              className={`cursor-pointer w-44 transition-all duration-150 hover:scale-105 ${
+                i === selectedMap
+                  ? 'border-amber-400 bg-zinc-800/90 shadow-lg shadow-amber-500/20 ring-1 ring-amber-400/30'
+                  : 'border-zinc-600/50 bg-zinc-800/60 hover:border-zinc-500'
+              }`}
+              onClick={() => setSelectedMap(i)}>
+              <CardContent className="pt-3 pb-2 text-center">
+                <div className="text-2xl mb-1">{m.thumbnail}</div>
+                <div className="font-bold text-sm text-zinc-100">{m.name}</div>
+                <div className="text-[11px] text-amber-400/70">{m.subtitle}</div>
+                <div className="text-[9px] text-zinc-500 mt-1 leading-snug">{m.description.slice(0, 60)}...</div>
               </CardContent>
             </Card>
           ))}
         </div>
-        <div className="flex gap-4 mb-8">
+
+        {/* Faction picker */}
+        <div className="flex gap-3 mb-6">
           {(['kingdom', 'legion'] as const).map(f => (
-            <Button key={f} size="lg" variant={selectedFaction === f ? 'default' : 'outline'} onClick={() => setSelectedFaction(f)} className={selectedFaction === f ? 'bg-blue-600' : ''}>
-              {f === 'kingdom' ? '🏰 Kingdom' : '💀 Legion'}
-            </Button>
+            <button key={f}
+              onClick={() => setSelectedFaction(f)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all border-2 ${
+                selectedFaction === f
+                  ? f === 'kingdom'
+                    ? 'bg-blue-600/90 border-blue-400 text-white shadow-lg shadow-blue-500/30'
+                    : 'bg-red-600/90 border-red-400 text-white shadow-lg shadow-red-500/30'
+                  : 'bg-zinc-800/60 border-zinc-600/50 text-zinc-300 hover:bg-zinc-700/60'
+              }`}>
+              <span className="text-xl">{f === 'kingdom' ? '🏰' : '💀'}</span>
+              {f === 'kingdom' ? 'Kingdom' : 'Legion'}
+            </button>
           ))}
         </div>
-        <Button size="lg" onClick={startGame} className="bg-green-600 hover:bg-green-700 text-lg px-8"><Play className="h-5 w-5 mr-2" /> Start Game</Button>
-        <div className="mt-6 text-xs text-zinc-500 max-w-lg text-center leading-relaxed">
-          <span className="text-zinc-300 font-bold">Controls:</span>{' '}
+
+        {/* Start button — large, golden */}
+        <Button size="lg" onClick={startGame}
+          className="bg-gradient-to-b from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-lg px-10 py-3 font-bold shadow-xl shadow-green-600/30 border border-green-400/30 rounded-xl">
+          <Play className="h-5 w-5 mr-2" /> Start Game
+        </Button>
+
+        {/* Controls */}
+        <div className="mt-5 text-[10px] text-white/30 max-w-md text-center leading-relaxed bg-black/10 rounded-lg px-4 py-2">
+          <span className="text-white/50 font-bold">Controls:</span>{' '}
           Arrows=pan · Wheel=zoom · Edge=scroll · LClick=select · RClick=move/attack ·
           A=attack-move · S=stop · H=hold · B=build · Ctrl+1-9=group · 1-9=recall ·
           F1-F3=hero · Space=last event · U=upgrade TH
@@ -440,18 +497,20 @@ export function GameCanvas() {
     const pct = Math.round(loadProgress * 100);
     const stats = spriteLoader.getStats();
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-white">
-        <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-red-500">
-          Loading Assets
+      <div className="flex flex-col items-center justify-center h-full text-white"
+        style={{ background: 'linear-gradient(180deg, #2d8a9e 0%, #3a9fbf 50%, #2d8a9e 100%)' }}>
+        <div className="text-4xl mb-4">⚔️</div>
+        <h2 className="text-xl font-bold mb-4 text-amber-300">
+          Preparing the Battlefield
         </h2>
-        <div className="w-80 h-3 bg-zinc-800 rounded-full overflow-hidden mb-3">
+        <div className="w-72 h-2.5 bg-black/30 rounded-full overflow-hidden mb-3 border border-white/10">
           <div
-            className="h-full bg-gradient-to-r from-amber-500 to-green-500 transition-all duration-200"
+            className="h-full bg-gradient-to-r from-amber-400 to-green-400 transition-all duration-200 rounded-full"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="text-sm text-zinc-400 mb-1">{pct}% — {stats.cached} loaded, {stats.loading} loading, {stats.queueSize} queued</div>
-        <div className="text-[10px] text-zinc-600">Sprites from ObjectStore CDN</div>
+        <div className="text-xs text-white/50 mb-1">{pct}% — {stats.cached} sprites loaded</div>
+        <div className="text-[10px] text-white/25">Loading from ObjectStore CDN</div>
       </div>
     );
   }

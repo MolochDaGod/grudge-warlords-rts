@@ -9,13 +9,31 @@ function loadImg(src: string, priority = PRIORITY.UNIT): HTMLImageElement | null
   return spriteLoader.get(src, priority);
 }
 
-// ── Colors ─────────────────────────────────────────────────────────────────────
+// ── Colors — Tiny Swords palette ────────────────────────────────────────────────
 const FACTION_COLORS = { blue: '#3b82f6', red: '#ef4444', neutral: '#f59e0b' };
-const WATER_COLOR = '#1e6091';
-const ISLAND_COLOR = '#4a7c59';
+const WATER_DEEP   = '#3a9fbf';   // Tiny Swords teal
+const WATER_MID    = '#4db8d1';
+const WATER_LIGHT  = '#6bc8d9';
+const GRASS_MAIN   = '#5a9e3e';   // Main grass
+const GRASS_LIGHT  = '#6db84a';   // Grass highlight
+const GRASS_DARK   = '#3d7a2a';   // Grass shadow
+const CLIFF_TOP    = '#7a8b96';   // Stone cliff face
+const CLIFF_MID    = '#5e6e78';
+const CLIFF_BOTTOM = '#4a5860';
+const CLIFF_SHADOW = 'rgba(0,0,0,0.2)';
 const GOLD_MINE_COLOR = '#fbbf24';
-const TREE_COLOR = '#166534';
-const GRID_COLOR = 'rgba(255,255,255,0.04)';
+const CDN = 'https://molochdagod.github.io/ObjectStore';
+
+// ── Miniworld Terrain Tile CDN paths ────────────────────────────────────────────
+const TERRAIN = {
+  tree1: `${CDN}/sprites/miniworld/Decorations/Trees1.png`,       // pine trees
+  tree2: `${CDN}/sprites/miniworld/Decorations/Trees2.png`,       // autumn/leafy trees
+  bush:  `${CDN}/sprites/miniworld/Decorations/Bushes.png`,
+  rock:  `${CDN}/sprites/miniworld/Decorations/Rocks.png`,
+  flower:`${CDN}/sprites/miniworld/Decorations/Flowers.png`,
+  fence: `${CDN}/sprites/miniworld/Decorations/WoodFence.png`,
+  sheep: `${CDN}/sprites/miniworld/Animals/Sheep.png`,
+};
 
 // ── Sprite rendering helper ────────────────────────────────────────────────────
 function drawSprite(
@@ -54,37 +72,32 @@ export function renderGame(
   ctx.translate(-camera.x * zoom, -camera.y * zoom);
   ctx.scale(zoom, zoom);
 
-  // ── Water background ─────────────────────────────────────────────────────
+  // ── Water background — Tiny Swords teal ──────────────────────────────────
   const sx = Math.floor(camera.x);
   const sy = Math.floor(camera.y);
   const ew = Math.ceil(canvasW / zoom) + 128;
   const eh = Math.ceil(canvasH / zoom) + 128;
-  ctx.fillStyle = WATER_COLOR;
+  ctx.fillStyle = WATER_DEEP;
   ctx.fillRect(sx, sy, ew, eh);
-  // Water grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 0.5;
-  for (let x = sx - (sx % 64); x < sx + ew; x += 64) {
-    ctx.beginPath(); ctx.moveTo(x, sy); ctx.lineTo(x, sy + eh); ctx.stroke();
+  // Water wave highlights — subtle animated highlights
+  const t = performance.now() / 1000;
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = WATER_LIGHT;
+  for (let wx = sx - (sx % 96); wx < sx + ew; wx += 96) {
+    for (let wy = sy - (sy % 96); wy < sy + eh; wy += 96) {
+      const phase = Math.sin(t * 0.8 + wx * 0.01 + wy * 0.015);
+      if (phase > 0.3) {
+        ctx.beginPath();
+        ctx.ellipse(wx + 48, wy + 48, 30 + phase * 10, 8 + phase * 4, phase * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
-  for (let y = sy - (sy % 64); y < sy + eh; y += 64) {
-    ctx.beginPath(); ctx.moveTo(sx, y); ctx.lineTo(sx + ew, y); ctx.stroke();
-  }
+  ctx.globalAlpha = 1;
 
-  // ── Islands ──────────────────────────────────────────────────────────────
+  // ── Islands — Tiny Swords grass + cliff edges ─────────────────────────────
   for (const isl of state.islands) {
-    ctx.fillStyle = ISLAND_COLOR;
-    ctx.beginPath();
-    roundRect(ctx, isl.x, isl.y, isl.w, isl.h, 16);
-    ctx.fill();
-    // Island border
-    ctx.strokeStyle = '#2d5a3e';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // Island label
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '10px sans-serif';
-    ctx.fillText(isl.id, isl.x + 8, isl.y + 16);
+    drawTinySwordsIsland(ctx, isl, t);
   }
 
   // ── Y-sorted rendering: resources, buildings, units ──────────────────────
@@ -184,35 +197,159 @@ export function renderGame(
   drawMinimap(ctx, state, canvasW, canvasH);
 }
 
+// ── Tiny Swords island renderer ─────────────────────────────────────────────────
+function drawTinySwordsIsland(ctx: CanvasRenderingContext2D, isl: Island, t: number) {
+  const { x, y, w, h } = isl;
+  const r = 20;  // corner radius
+  const cliffH = 16;  // cliff drop height
+
+  // ── Cliff shadow (darkest, bottom-most layer) ───────────────────────────
+  ctx.fillStyle = CLIFF_SHADOW;
+  ctx.beginPath();
+  roundRect(ctx, x + 3, y + cliffH + 3, w, h, r);
+  ctx.fill();
+
+  // ── Cliff face (stone wall visible from side/bottom) ───────────────────
+  ctx.fillStyle = CLIFF_BOTTOM;
+  ctx.beginPath();
+  roundRect(ctx, x, y + cliffH, w, h, r);
+  ctx.fill();
+
+  // Mid cliff band
+  ctx.fillStyle = CLIFF_MID;
+  ctx.beginPath();
+  roundRect(ctx, x, y + cliffH - 4, w, h - 4, r);
+  ctx.fill();
+
+  // Top cliff edge
+  ctx.fillStyle = CLIFF_TOP;
+  ctx.beginPath();
+  roundRect(ctx, x, y + 6, w, h - 6, r);
+  ctx.fill();
+
+  // ── Grass surface ──────────────────────────────────────────────────────
+  ctx.fillStyle = GRASS_MAIN;
+  ctx.beginPath();
+  roundRect(ctx, x + 2, y + 2, w - 4, h - cliffH, r - 2);
+  ctx.fill();
+
+  // Grass highlight patches (lighter splotches for texture)
+  ctx.fillStyle = GRASS_LIGHT;
+  ctx.globalAlpha = 0.35;
+  const seed = x * 7 + y * 13;  // deterministic per-island
+  for (let i = 0; i < 12; i++) {
+    const px = x + 20 + ((seed + i * 97) % (w - 40));
+    const py = y + 15 + ((seed + i * 53) % (h - cliffH - 30));
+    const sz = 18 + (i % 5) * 8;
+    ctx.beginPath();
+    ctx.ellipse(px, py, sz, sz * 0.6, (i * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Grass dark edge (inner border for depth)
+  ctx.strokeStyle = GRASS_DARK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  roundRect(ctx, x + 2, y + 2, w - 4, h - cliffH, r - 2);
+  ctx.stroke();
+
+  // ── Cliff edge highlight (top edge of cliff face — light stone) ────────
+  ctx.strokeStyle = '#8fa3b0';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  // Only the bottom and sides of the grass area
+  const bx = x + 2, by = y + h - cliffH + 2, bw = w - 4;
+  ctx.moveTo(bx, by - 6);
+  ctx.lineTo(bx, by + 2);
+  ctx.arcTo(bx + bw, by + 2, bx + bw, by - 6, r);
+  ctx.lineTo(bx + bw, by - 6);
+  ctx.stroke();
+
+  // ── Decorative stone dots on cliff face ────────────────────────────────
+  ctx.fillStyle = '#8a9aa4';
+  ctx.globalAlpha = 0.3;
+  for (let i = 0; i < 8; i++) {
+    const dx = x + 15 + ((seed + i * 71) % (w - 30));
+    const dy = y + h - cliffH + 4 + ((seed + i * 37) % (cliffH - 2));
+    ctx.beginPath();
+    ctx.arc(dx, dy, 2 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Faction tint (subtle colored overlay for team islands) ─────────────
+  if (isl.faction === 'blue' || isl.faction === 'red') {
+    ctx.fillStyle = isl.faction === 'blue' ? 'rgba(59,130,246,0.06)' : 'rgba(239,68,68,0.06)';
+    ctx.beginPath();
+    roundRect(ctx, x + 2, y + 2, w - 4, h - cliffH, r - 2);
+    ctx.fill();
+  }
+}
+
 // ── Draw individual elements ───────────────────────────────────────────────────
 function drawResource(ctx: CanvasRenderingContext2D, res: Resource) {
   const isGold = res.type === 'goldmine';
-  const size = isGold ? 40 : 28;
-  ctx.fillStyle = isGold ? GOLD_MINE_COLOR : TREE_COLOR;
   if (isGold) {
+    // Gold mine — stone circle with gold
+    ctx.fillStyle = '#5e6e78';
     ctx.beginPath();
-    ctx.arc(res.pos.x, res.pos.y, size / 2, 0, Math.PI * 2);
+    ctx.arc(res.pos.x, res.pos.y, 22, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#92400e';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('💰', res.pos.x, res.pos.y + 6);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7a8b96';
+    ctx.beginPath();
+    ctx.arc(res.pos.x, res.pos.y - 2, 20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = GOLD_MINE_COLOR;
+    ctx.beginPath();
+    ctx.arc(res.pos.x, res.pos.y - 2, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#d4a017';
+    ctx.beginPath();
+    ctx.arc(res.pos.x - 3, res.pos.y - 5, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(res.pos.x + 4, res.pos.y - 1, 4, 0, Math.PI * 2);
+    ctx.fill();
   } else {
-    ctx.beginPath();
-    ctx.moveTo(res.pos.x, res.pos.y - size);
-    ctx.lineTo(res.pos.x - size / 2, res.pos.y);
-    ctx.lineTo(res.pos.x + size / 2, res.pos.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#5b3a1a';
-    ctx.fillRect(res.pos.x - 3, res.pos.y, 6, 10);
+    // Tree — Tiny Swords style: try CDN sprite, fallback to procedural pixel tree
+    const treeImg = loadImg(TERRAIN.tree1, PRIORITY.BUILDING);
+    if (treeImg) {
+      // Tree1.png is a 4-frame strip of 32x32 pine trees
+      const treeVariant = ((res.pos.x * 7 + res.pos.y * 3) | 0) % 4;
+      ctx.drawImage(treeImg, treeVariant * 32, 0, 32, 32, res.pos.x - 24, res.pos.y - 40, 48, 48);
+    } else {
+      // Procedural pixel-art tree (green canopy + brown trunk)
+      // Trunk
+      ctx.fillStyle = '#5b3a1a';
+      ctx.fillRect(res.pos.x - 3, res.pos.y - 4, 6, 14);
+      // Canopy layers (dark → light, bottom → top)
+      ctx.fillStyle = '#2d6b1b';
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x, res.pos.y - 14, 16, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3d8c28';
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x, res.pos.y - 20, 13, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4da832';
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x - 1, res.pos.y - 26, 9, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Highlight
+      ctx.fillStyle = '#6bc84a';
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x - 3, res.pos.y - 22, 5, 4, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
   // Amount label
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(res.amount)}`, res.pos.x, res.pos.y + (isGold ? 28 : 20));
+  ctx.fillText(`${Math.round(res.amount)}`, res.pos.x, res.pos.y + (isGold ? 28 : 18));
   ctx.textAlign = 'left';
 }
 
