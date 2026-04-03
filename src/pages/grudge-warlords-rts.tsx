@@ -3,7 +3,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, Download, Upload, Play, Home, RotateCcw } from 'lucide-react';
+import { Save, Download, Upload, Play, Home, RotateCcw, FileDown, FolderDown } from 'lucide-react';
 import { Link } from 'wouter';
 import { DesignerCanvas } from '@/components/game-designer/DesignerCanvas';
 import { NodePalette } from '@/components/game-designer/NodePalette';
@@ -79,6 +79,8 @@ export default function GrudgeWarlordsRTS() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tab, setTab] = useState('play');
   const [saveMsg, setSaveMsg] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   // Current faction data shortcuts
   const currentDesign = factionDesigns[activeFaction];
@@ -101,6 +103,7 @@ export default function GrudgeWarlordsRTS() {
       const newNodes = typeof updater === 'function' ? updater(current.nodes) : updater;
       return { ...prev, [activeFaction]: { ...current, nodes: newNodes } };
     });
+    setDirty(true);
   }, [activeFaction]);
 
   const setConnections = useCallback((updater: Connection[] | ((prev: Connection[]) => Connection[])) => {
@@ -109,13 +112,20 @@ export default function GrudgeWarlordsRTS() {
       const newConns = typeof updater === 'function' ? updater(current.connections) : updater;
       return { ...prev, [activeFaction]: { ...current, connections: newConns } };
     });
+    setDirty(true);
   }, [activeFaction]);
 
-  // ── Clear selection when switching factions ─────────────────────────────────
+  // ── Auto-save current faction before switching ──────────────────────────────
   const handleFactionChange = useCallback((faction: FactionId) => {
+    // Auto-save current faction to prevent data loss
+    setFactionDesigns(prev => {
+      saveFactionDesign(activeFaction, prev[activeFaction]);
+      return prev;
+    });
     setSelectedNodeId(null);
     setActiveFaction(faction);
-  }, []);
+    setConfirmReset(false);
+  }, [activeFaction]);
 
   // ── Drop handler: create node from palette template ────────────────────────
   const handleDropNode = useCallback((kindData: string, x: number, y: number) => {
@@ -148,11 +158,34 @@ export default function GrudgeWarlordsRTS() {
   }, [setNodes]);
 
   // ── Save all factions ──────────────────────────────────────────────────────
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     saveAllFactions(factionDesigns);
+    setDirty(false);
     setSaveMsg('All factions saved!');
     setTimeout(() => setSaveMsg(''), 2000);
-  };
+  }, [factionDesigns]);
+
+  // ── Ctrl+S keyboard shortcut ───────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleSave]);
+
+  // ── Auto-save every 30 seconds if dirty ────────────────────────────────────
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => {
+      saveAllFactions(factionDesigns);
+      setDirty(false);
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [dirty, factionDesigns]);
 
   // ── Export current faction ──────────────────────────────────────────────────
   const handleExport = () => {
@@ -231,14 +264,21 @@ export default function GrudgeWarlordsRTS() {
     input.click();
   };
 
-  // ── Reset current faction to defaults ──────────────────────────────────────
+  // ── Reset current faction to defaults (requires confirmation) ──────────────
   const handleResetFaction = () => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 3000);
+      return;
+    }
     const def = DEFAULT_FACTION_DESIGNS[activeFaction];
     updateFaction(activeFaction, () => ({
       nodes: def.nodes.map(n => ({ ...n })),
       connections: def.connections.map(c => ({ ...c })),
     }));
     setSelectedNodeId(null);
+    setConfirmReset(false);
+    setDirty(true);
     setSaveMsg(`${factionMeta.label} reset to defaults`);
     setTimeout(() => setSaveMsg(''), 2000);
   };
@@ -257,12 +297,26 @@ export default function GrudgeWarlordsRTS() {
         </Link>
         <h1 className="text-lg font-bold text-zinc-100">Grudge Warlords — RTS Game Designer</h1>
         <Badge variant="outline" className="text-xs">WC3-Style</Badge>
+        {dirty && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Unsaved changes" />}
         <div className="flex-1" />
         {saveMsg && <Badge variant="default" className="text-xs bg-green-600 animate-pulse">{saveMsg}</Badge>}
-        <Button size="sm" variant="outline" onClick={handleSave}><Save className="h-3.5 w-3.5 mr-1" /> Save All</Button>
-        <Button size="sm" variant="outline" onClick={handleExport}><Download className="h-3.5 w-3.5 mr-1" /> Export</Button>
-        <Button size="sm" variant="outline" onClick={handleExportAll}><Download className="h-3.5 w-3.5 mr-1" /> Export All</Button>
-        <Button size="sm" variant="outline" onClick={handleImport}><Upload className="h-3.5 w-3.5 mr-1" /> Import</Button>
+        {/* Designer-only actions */}
+        {tab === 'designer' && (
+          <>
+            <Button size="sm" variant="outline" onClick={handleSave} title="Ctrl+S">
+              <Save className="h-3.5 w-3.5 mr-1" /> Save All
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExport} title={`Export ${factionMeta.label} faction`}>
+              <FileDown className="h-3.5 w-3.5 mr-1" /> {factionMeta.label}
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExportAll} title="Export all factions">
+              <FolderDown className="h-3.5 w-3.5 mr-1" /> All
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleImport}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> Import
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -310,8 +364,9 @@ export default function GrudgeWarlordsRTS() {
             <Badge variant="outline" className="text-[10px]" style={{ borderColor: factionMeta.color, color: factionMeta.color }}>
               {factionMeta.icon} {factionMeta.label}: {buildingCount} buildings · {unitCount} units · {heroCount} heroes · {connections.length} links
             </Badge>
-            <Button size="sm" variant="ghost" onClick={handleResetFaction} className="text-[10px] h-6 px-2 text-zinc-500 hover:text-red-400">
-              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+            <Button size="sm" variant="ghost" onClick={handleResetFaction}
+              className={`text-[10px] h-6 px-2 ${confirmReset ? 'text-red-400 bg-red-400/10 border border-red-400/30' : 'text-zinc-500 hover:text-red-400'}`}>
+              <RotateCcw className="h-3 w-3 mr-1" /> {confirmReset ? 'Click again to confirm' : 'Reset'}
             </Button>
           </div>
 
