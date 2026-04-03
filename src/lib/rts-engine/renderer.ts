@@ -2,19 +2,11 @@ import type { GameState, Unit, Building, Resource, Island, Projectile, VfxEffect
 import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, getUnitSprites, getLegionSprites, getBuildingSprite, DAY_DURATION, CYCLE_LENGTH } from './constants';
 import { VFX_CONFIGS } from './vfx';
 import { getUnitDisplay, getBuildingDisplay } from './unit-defaults';
+import { spriteLoader, PRIORITY } from './sprite-loader';
 
-// ── Image cache ────────────────────────────────────────────────────────────────
-const _imgCache = new Map<string, HTMLImageElement>();
-function loadImg(src: string): HTMLImageElement | null {
-  if (_imgCache.has(src)) {
-    const img = _imgCache.get(src)!;
-    return img.complete && img.naturalWidth > 0 ? img : null;
-  }
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.src = src;
-  _imgCache.set(src, img);
-  return null;
+// ── Image loading via SpriteLoader (replaces raw cache) ────────────────────────
+function loadImg(src: string, priority = PRIORITY.UNIT): HTMLImageElement | null {
+  return spriteLoader.get(src, priority);
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────────

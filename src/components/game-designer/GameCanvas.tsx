@@ -13,9 +13,10 @@ import { renderGame } from '@/lib/rts-engine/renderer';
 import { MAPS } from '@/lib/rts-engine/maps';
 import { fxController } from '@/lib/rts-engine/fx-controller';
 import { BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
+import { spriteLoader } from '@/lib/rts-engine/sprite-loader';
 import type { GameState, Vec2, BuildingType, UnitType } from '@/lib/rts-engine/types';
 
-type GamePhase = 'menu' | 'playing' | 'paused';
+type GamePhase = 'menu' | 'loading' | 'playing' | 'paused';
 
 const EDGE_SCROLL_ZONE = 30;
 const EDGE_SCROLL_SPEED = 12;
@@ -39,6 +40,7 @@ export function GameCanvas() {
   const [attackMoveMode, setAttackMoveMode] = useState(false);
   const [buildMenuOpen, setBuildMenuOpen] = useState(false);
   const [fps, setFps] = useState(0);
+  const [loadProgress, setLoadProgress] = useState(0);
 
   // ── Responsive canvas sizing ──────────────────────────────────────────────
   useEffect(() => {
@@ -58,16 +60,35 @@ export function GameCanvas() {
     return () => observer.disconnect();
   }, [phase]);
 
-  // ── Start game ─────────────────────────────────────────────────────────────
+  // ── Start game (with preload phase) ────────────────────────────────────────
   const startGame = useCallback(() => {
+    // Trigger sprite preload and enter loading phase
+    spriteLoader.preloadAll();
+    setPhase('loading');
+    setLoadProgress(0);
     const mapDef = MAPS[selectedMap];
     stateRef.current = createInitialState(mapDef, selectedFaction);
-    setPhase('playing');
     lastTimeRef.current = performance.now();
     setBuildMode(null);
     setAttackMoveMode(false);
     setBuildMenuOpen(false);
   }, [selectedMap, selectedFaction]);
+
+  // ── Loading phase: poll progress until enough assets are loaded ────────────
+  useEffect(() => {
+    if (phase !== 'loading') return;
+    const poll = setInterval(() => {
+      const p = spriteLoader.progress;
+      setLoadProgress(p);
+      // Start playing once 60% loaded (heroes + units + buildings ready)
+      // Remaining VFX/creeps continue loading in background
+      if (p >= 0.6 || !spriteLoader.isLoading) {
+        clearInterval(poll);
+        setPhase('playing');
+      }
+    }, 100);
+    return () => clearInterval(poll);
+  }, [phase]);
 
   // ── Game loop ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -413,6 +434,29 @@ export function GameCanvas() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
+  // LOADING
+  // ══════════════════════════════════════════════════════════════════════════════
+  if (phase === 'loading') {
+    const pct = Math.round(loadProgress * 100);
+    const stats = spriteLoader.getStats();
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-white">
+        <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-red-500">
+          Loading Assets
+        </h2>
+        <div className="w-80 h-3 bg-zinc-800 rounded-full overflow-hidden mb-3">
+          <div
+            className="h-full bg-gradient-to-r from-amber-500 to-green-500 transition-all duration-200"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="text-sm text-zinc-400 mb-1">{pct}% — {stats.cached} loaded, {stats.loading} loading, {stats.queueSize} queued</div>
+        <div className="text-[10px] text-zinc-600">Sprites from ObjectStore CDN</div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
   // GAME
   // ══════════════════════════════════════════════════════════════════════════════
   const selectedBld = stateRef.current?.selectedBuildingId ? stateRef.current.buildings.get(stateRef.current.selectedBuildingId) : null;
@@ -423,6 +467,11 @@ export function GameCanvas() {
       <div className="flex items-center gap-2 p-1 bg-zinc-900/90 border-b border-zinc-800 z-10 shrink-0">
         <Button size="sm" variant="ghost" onClick={() => { setPhase('menu'); cancelAnimationFrame(animRef.current); }}><RotateCcw className="h-3.5 w-3.5 mr-1" /> Menu</Button>
         <Badge variant="secondary" className="text-[10px]">{fps} FPS</Badge>
+        {spriteLoader.isLoading && (
+          <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/40">
+            Loading: {Math.round(spriteLoader.progress * 100)}%
+          </Badge>
+        )}
         <div className="flex-1" />
         {buildMode && <Badge variant="default" className="text-xs bg-amber-600">Building: {buildMode} — click to place, ESC cancel</Badge>}
         {attackMoveMode && <Badge variant="default" className="text-xs bg-red-600">Attack-Move — click target, ESC cancel</Badge>}
