@@ -26,7 +26,10 @@ export type NeutralCreatureType =
   | 'desertScorpio' | 'desertVulture' | 'fireElemental' | 'mimic'
   | 'mineElemental' | 'ogreBoss' | 'pirateCaptainHero' | 'steampunkMech';
 
-export type UnitType = HeroType | LegionType | ChampionType | SoldierType | MonsterType | NeutralCreatureType;
+export type AnimalType =
+  | 'sheep' | 'hornedSheep' | 'chicken' | 'chick' | 'horse' | 'boar' | 'pig';
+
+export type UnitType = HeroType | LegionType | ChampionType | SoldierType | MonsterType | NeutralCreatureType | AnimalType;
 
 // ── Building types ─────────────────────────────────────────────────────────────
 export type BuildingType =

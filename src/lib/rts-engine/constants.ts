@@ -72,6 +72,15 @@ export const UNIT_CONFIGS: Record<string, UnitConfig> = {
   mimic:            { hp:200, speed:30,  damage:50, armor:3, range:48,  attackSpeed:0.7, role:'melee',  foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
   mineElemental:    { hp:180, speed:60,  damage:35, armor:3, range:52,  attackSpeed:0.85,role:'melee',  foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
   pirateCaptainHero:{ hp:400, speed:95,  damage:55, armor:4, range:200, attackSpeed:1.0, role:'ranged', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+
+  // ── ANIMALS (ambient / map dressing, 0 food cost) ─────────────────────────────
+  sheep:        { hp:15,  speed:35, damage:0, armor:0, range:0,  attackSpeed:0, role:'worker', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  hornedSheep:  { hp:25,  speed:30, damage:3, armor:1, range:30, attackSpeed:2.0, role:'melee', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  chicken:      { hp:5,   speed:50, damage:0, armor:0, range:0,  attackSpeed:0, role:'worker', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  chick:        { hp:3,   speed:55, damage:0, armor:0, range:0,  attackSpeed:0, role:'worker', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  horse:        { hp:80,  speed:140,damage:5, armor:1, range:40, attackSpeed:1.5, role:'melee', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  boar:         { hp:60,  speed:90, damage:12,armor:1, range:40, attackSpeed:1.2, role:'melee', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+  pig:          { hp:20,  speed:45, damage:0, armor:0, range:0,  attackSpeed:0, role:'worker', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
 };
 
 // ── Building Configs (WC3 tech tree) ───────────────────────────────────────────
@@ -128,6 +137,30 @@ export const ABILITY_DEFS: Record<string, AbilityDef> = {
   bash:            { id:'bash',            name:'Bash',            icon:'🔨', description:'Each attack has a chance to stun the target.',                          targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[15,25,35] },
   devotion_aura:   { id:'devotion_aura',   name:'Devotion Aura',   icon:'🛡️', description:'Nearby allied units gain bonus armor.',                                targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[2,4,6] },
   reincarnation:   { id:'reincarnation',   name:'Reincarnation',   icon:'♻️', description:'Upon death, automatically revives at full health after a short delay.', targetType:'none',          cooldown:240,manaCost:0,   levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[0] },
+
+  // Assassin Hero (Gangblanc — Shadow Blade)
+  backstab:        { id:'backstab',        name:'Backstab',        icon:'🔪', description:'Teleports behind a target and deals massive damage.',                   targetType:'unit',          cooldown:8,  manaCost:70,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[120,200,280] },
+  smoke_bomb:      { id:'smoke_bomb',      name:'Smoke Bomb',      icon:'💨', description:'Creates a smoke cloud that grants invisibility to nearby allies.',      targetType:'point',         cooldown:14, manaCost:85,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[3,4,5] },
+  blade_dance:     { id:'blade_dance',     name:'Blade Dance',     icon:'⚔️', description:'Chance to deal double damage on each attack.',                          targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[15,25,35] },
+  death_mark:      { id:'death_mark',      name:'Death Mark',      icon:'💀', description:'Marks a target for death, dealing massive delayed damage.',             targetType:'unit',          cooldown:100,manaCost:175, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[500] },
+
+  // Monk Hero (Okomo — Spirit Fist)
+  spirit_punch:    { id:'spirit_punch',    name:'Spirit Punch',    icon:'👊', description:'Channels spiritual energy into a devastating melee strike.',             targetType:'unit',          cooldown:6,  manaCost:55,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[90,160,230] },
+  inner_fire:      { id:'inner_fire',      name:'Inner Fire',      icon:'🔥', description:'Buffs a friendly unit with bonus damage and armor.',                    targetType:'unit',          cooldown:10, manaCost:65,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[4,7,10] },
+  windwalk:        { id:'windwalk',        name:'Windwalk',        icon:'🌬️', description:'Becomes invisible and moves faster for a short duration.',              targetType:'none',          cooldown:12, manaCost:75,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[30,50,70] },
+  fury_of_spirits: { id:'fury_of_spirits', name:'Fury of Spirits', icon:'👻', description:'Summons spectral warriors that attack all nearby enemies.',              targetType:'none',          cooldown:120,manaCost:200, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[400] },
+
+  // Ninja Hero (Zhinja — Wind Shadow)
+  shuriken_toss:   { id:'shuriken_toss',   name:'Shuriken Toss',   icon:'🌀', description:'Throws shurikens that bounce between enemies.',                         targetType:'unit',          cooldown:7,  manaCost:60,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[80,140,200] },
+  shadow_step:     { id:'shadow_step',     name:'Shadow Step',     icon:'👤', description:'Instantly teleports to a target location.',                             targetType:'point',         cooldown:8,  manaCost:50,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[0,0,0] },
+  wind_slash:      { id:'wind_slash',      name:'Wind Slash',      icon:'💨', description:'Sends a blade of wind that damages all enemies in a line.',             targetType:'point',         cooldown:10, manaCost:80,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[70,120,170] },
+  shadow_clone:    { id:'shadow_clone',    name:'Shadow Clone',    icon:'🥷', description:'Creates shadow clones that fight alongside you.',                       targetType:'none',          cooldown:110,manaCost:180, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[0] },
+
+  // Berserker Hero (Börg — Iron Juggernaut)
+  raging_charge:   { id:'raging_charge',   name:'Raging Charge',   icon:'🐂', description:'Charges at a target, dealing damage and stunning on impact.',            targetType:'unit',          cooldown:10, manaCost:80,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[100,175,250] },
+  battle_roar:     { id:'battle_roar',     name:'Battle Roar',     icon:'🦁', description:'Roars, increasing nearby allies attack speed and damage.',               targetType:'none',          cooldown:16, manaCost:90,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[10,18,26] },
+  blood_rage:      { id:'blood_rage',      name:'Blood Rage',      icon:'🩸', description:'Each kill heals for a percentage of max HP.',                           targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[5,10,15] },
+  apocalypse:      { id:'apocalypse',      name:'Apocalypse',      icon:'☠️', description:'Unleashes devastating AoE damage around the hero.',                     targetType:'none',          cooldown:130,manaCost:200, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[600] },
 };
 
 // ── Hero Configs (WC3 heroes — max 3 per match) ───────────────────────────────
@@ -158,6 +191,34 @@ export const HERO_CONFIGS: HeroConfig[] = [
     hp: 800, mana: 200, damage: 28, armor: 5, speed: 75, range: 50, attackSpeed: 0.9,
     hpPerLevel: 60, manaPerLevel: 12, damagePerLevel: 3, armorPerLevel: 0.6,
     abilities: ['thunder_clap', 'bash', 'devotion_aura', 'reincarnation'],
+    summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
+  },
+  {
+    type: 'gangblanc', name: 'Gangblanc', title: 'Shadow Blade',
+    hp: 500, mana: 250, damage: 38, armor: 2, speed: 120, range: 48, attackSpeed: 1.6,
+    hpPerLevel: 35, manaPerLevel: 18, damagePerLevel: 5, armorPerLevel: 0.3,
+    abilities: ['backstab', 'smoke_bomb', 'blade_dance', 'death_mark'],
+    summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
+  },
+  {
+    type: 'okomo', name: 'Okomo', title: 'Spirit Fist',
+    hp: 600, mana: 220, damage: 32, armor: 3, speed: 100, range: 50, attackSpeed: 1.3,
+    hpPerLevel: 45, manaPerLevel: 16, damagePerLevel: 4, armorPerLevel: 0.5,
+    abilities: ['spirit_punch', 'inner_fire', 'windwalk', 'fury_of_spirits'],
+    summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
+  },
+  {
+    type: 'zhinja', name: 'Zhinja', title: 'Wind Shadow',
+    hp: 420, mana: 280, damage: 34, armor: 1, speed: 130, range: 140, attackSpeed: 1.5,
+    hpPerLevel: 30, manaPerLevel: 20, damagePerLevel: 4, armorPerLevel: 0.3,
+    abilities: ['shuriken_toss', 'shadow_step', 'wind_slash', 'shadow_clone'],
+    summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
+  },
+  {
+    type: 'borg', name: 'Börg', title: 'Iron Juggernaut',
+    hp: 900, mana: 180, damage: 30, armor: 6, speed: 70, range: 52, attackSpeed: 0.8,
+    hpPerLevel: 65, manaPerLevel: 10, damagePerLevel: 3, armorPerLevel: 0.7,
+    abilities: ['raging_charge', 'battle_roar', 'blood_rage', 'apocalypse'],
     summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
   },
 ];
@@ -246,7 +307,7 @@ const SPRITE_MAP: Partial<Record<string, SpriteMapping>> = {
   orcHealer:    { folder: '/sprites/enemies/evil-wizard-2' },
   orcMage:      { folder: '/sprites/characters/fire-wizard' },
 
-  // ── Heroes ────────────────────────────────────────────────────────────────
+  // ── Heroes & Champions ──────────────────────────────────────────────────────
   warrior:      { folder: '/sprites/characters/fantasy-warrior' },
   archer:       { folder: '/sprites/characters/archer' },
   lancer:       { folder: '/sprites/characters/lancer' },
@@ -255,6 +316,10 @@ const SPRITE_MAP: Partial<Record<string, SpriteMapping>> = {
   kanji:        { folder: '/sprites/characters/human-mage' },
   katan:        { folder: '/sprites/characters/archer' },
   grum:         { folder: '/sprites/characters/knight' },
+  gangblanc:    { folder: '/sprites/characters/shadow-warrior' },
+  okomo:        { folder: '/sprites/characters/spirit_boxer' },
+  zhinja:       { folder: '/sprites/characters/wind-hashashin', walkFile: 'run.png' },
+  borg:         { folder: '/sprites/characters/barbarian-warrior' },
 
   // ── Champions (Sanctum T3) ────────────────────────────────────────────────
   minotaur:     { folder: '/sprites/characters/barbarian-warrior' },
@@ -297,6 +362,17 @@ const SPRITE_MAP: Partial<Record<string, SpriteMapping>> = {
   giantCrab:        { folder: '/sprites/enemies/stormhead', attackFile: 'attack.png', walkFile: 'run.png' },
   armouredDemon:    { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
   purpleDemon:      { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+
+  // ── Animals (Miniworld) ──────────────────────────────────────────────────
+  // Animals are single spritesheets (not split into idle/walk/attack)
+  // Using the Miniworld canonical path as a single-frame idle
+  sheep:        { folder: '/sprites/miniworld/Animals', idleFile: 'Sheep.png', walkFile: 'Sheep.png', attackFile: 'Sheep.png', frameW: 16, frameH: 16, idleFrames: 4 },
+  hornedSheep:  { folder: '/sprites/miniworld/Animals', idleFile: 'HornedSheep.png', walkFile: 'HornedSheep.png', attackFile: 'HornedSheep.png', frameW: 16, frameH: 16, idleFrames: 4 },
+  chicken:      { folder: '/sprites/miniworld/Animals', idleFile: 'Chicken.png', walkFile: 'Chicken.png', attackFile: 'Chicken.png', frameW: 16, frameH: 16, idleFrames: 4 },
+  chick:        { folder: '/sprites/miniworld/Animals', idleFile: 'Chick.png', walkFile: 'Chick.png', attackFile: 'Chick.png', frameW: 16, frameH: 16, idleFrames: 2 },
+  horse:        { folder: '/sprites/miniworld/Animals', idleFile: 'Horse(32x32).png', walkFile: 'Horse(32x32).png', attackFile: 'Horse(32x32).png', frameW: 32, frameH: 32, idleFrames: 4 },
+  boar:         { folder: '/sprites/miniworld/Animals', idleFile: 'Boar.png', walkFile: 'Boar.png', attackFile: 'Boar.png', frameW: 16, frameH: 16, idleFrames: 4 },
+  pig:          { folder: '/sprites/miniworld/Animals', idleFile: 'Pig.png', walkFile: 'Pig.png', attackFile: 'Pig.png', frameW: 16, frameH: 16, idleFrames: 4 },
 };
 
 /** Kept for backward compat — returns same as getUnitSprites */
