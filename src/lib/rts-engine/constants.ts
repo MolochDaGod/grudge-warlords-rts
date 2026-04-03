@@ -323,117 +323,142 @@ export function getBuildingSprite(faction: 'blue' | 'red' | 'neutral', type: Bui
 
 // ── Sprite System — All assets from ObjectStore CDN ────────────────────────────
 
-/** Standard 48×48 spritesheet config from ObjectStore */
-function cdnSprite(path: string, frames = 4, msPerFrame = 120, frameW = 48, frameH = 48): SpriteConfig {
+/** Spritesheet config builder from ObjectStore CDN */
+function cdnSprite(path: string, frames: number, msPerFrame: number, frameW: number, frameH: number): SpriteConfig {
   return { src: `${CDN}${path}`, frameW, frameH, frames, msPerFrame };
 }
 
 /**
- * Sprite path mapping — maps every unit type to its ObjectStore CDN location.
- * Naming convention on CDN: idle.png, walk.png, attack1.png, death.png, hurt.png
+ * Sprite path mapping — every unit type mapped to ObjectStore CDN with CORRECT
+ * frame dimensions measured from actual PNG IHDR headers.
+ *
+ * Size groups:
+ *   100×100: soldier, archer, knight, lancer, priest, swordsman, orc, armored-orc,
+ *            elite-orc, skeleton-archer, skeleton, slime, barbarian-warrior, werebear
+ *   128×128: human-mage, frost-guardian, fire-wizard, necromancer, wind-hashashin, forest-guardian
+ *   96×96:   dark-knight, shadow-warrior, crossbowman
+ *   162×162: fantasy-warrior
+ *   250×250: evil-wizard-2
+ *   44×44:   spirit_boxer
+ *   32×32:   bandit-necro
+ *   64×64:   skeleton-enemy
+ *   48×48:   desert-vulture
  */
 interface SpriteMapping {
-  folder: string;       // Path under CDN root, e.g. '/sprites/characters/soldier'
-  frameW?: number;      // Override default 48
-  frameH?: number;      // Override default 48
-  idleFrames?: number;
-  walkFrames?: number;
-  attackFrames?: number;
-  /** Override filenames when they don't follow idle/walk/attack1 convention */
-  idleFile?: string;
-  walkFile?: string;
-  attackFile?: string;
+  folder: string;
+  frameW: number; frameH: number;
+  idleFrames: number; walkFrames: number; attackFrames: number;
+  idleFile?: string; walkFile?: string; attackFile?: string;
 }
 
+/** Shorthand for 100×100 standard units (6 idle, 8 walk, 6 attack) */
+const S100 = { frameW: 100, frameH: 100, idleFrames: 6, walkFrames: 8, attackFrames: 6 } as const;
+const S128 = { frameW: 128, frameH: 128, idleFrames: 7, walkFrames: 6, attackFrames: 4 } as const;
+const S96  = { frameW: 96,  frameH: 96,  idleFrames: 5, walkFrames: 8, attackFrames: 11 } as const;
+
 const SPRITE_MAP: Partial<Record<string, SpriteMapping>> = {
-  // ── Kingdom (Blue) units ──────────────────────────────────────────────────
-  pawn:         { folder: '/sprites/characters/soldier' },
-  farmer:       { folder: '/sprites/characters/soldier' },
-  swordsman:    { folder: '/sprites/characters/swordsman' },
-  spearman:     { folder: '/sprites/characters/lancer' },
-  axeman:       { folder: '/sprites/characters/barbarian-warrior' },
-  bowman:       { folder: '/sprites/characters/archer' },
-  musketeer:    { folder: '/sprites/enemies/crossbowman', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  knight:       { folder: '/sprites/characters/knight' },
-  assasin:      { folder: '/sprites/characters/dark-knight' },
-  mage:         { folder: '/sprites/characters/human-mage' },
-  necromancer:  { folder: '/sprites/characters/necromancer' },
-  ballista:     { folder: '/sprites/characters/soldier' },
+  // ── 100×100 units (soldier, archer, knight, lancer, priest, swordsman, orc variants) ──
+  pawn:         { folder: '/sprites/characters/soldier',    ...S100 },
+  farmer:       { folder: '/sprites/characters/soldier',    ...S100 },
+  swordsman:    { folder: '/sprites/characters/swordsman',  ...S100, attackFrames: 7 },
+  spearman:     { folder: '/sprites/characters/lancer',     ...S100 },
+  bowman:       { folder: '/sprites/characters/archer',     ...S100, attackFrames: 9 },
+  knight:       { folder: '/sprites/characters/knight',     ...S100, attackFrames: 7 },
+  ballista:     { folder: '/sprites/characters/soldier',    ...S100 },
+  warrior:      { folder: '/sprites/characters/soldier',    ...S100 },
+  archer:       { folder: '/sprites/characters/archer',     ...S100, attackFrames: 9 },
+  lancer:       { folder: '/sprites/characters/lancer',     ...S100 },
+  priest:       { folder: '/sprites/characters/priest',     ...S100, attackFrames: 9 },
+  orcPawn:      { folder: '/sprites/characters/orc',        ...S100 },
+  orcWarrior:   { folder: '/sprites/enemies/armored-orc',   ...S100, attackFrames: 7 },
+  orcSpearman:  { folder: '/sprites/characters/elite-orc',  ...S100, attackFrames: 7 },
+  orcArcher:    { folder: '/sprites/enemies/skeleton-archer',...S100, attackFrames: 9 },
+  goblin:       { folder: '/sprites/characters/orc',        ...S100 },
+  spearGoblin:  { folder: '/sprites/characters/elite-orc',  ...S100, attackFrames: 7 },
+  archerGoblin: { folder: '/sprites/enemies/skeleton-archer',...S100, attackFrames: 9 },
+  orc:          { folder: '/sprites/enemies/armored-orc',   ...S100, attackFrames: 7 },
+  skeleton:     { folder: '/sprites/enemies/skeleton',      ...S100 },
+  slime:        { folder: '/sprites/enemies/slime',         ...S100 },
+  slimeBlue:    { folder: '/sprites/enemies/slime',         ...S100 },
+  megaSlime:    { folder: '/sprites/enemies/slime',         ...S100 },
+  megaSlimeBlue:{ folder: '/sprites/enemies/slime',         ...S100 },
+  kingSlime:    { folder: '/sprites/enemies/slime',         ...S100 },
+  kingSlimeGreen:{ folder: '/sprites/enemies/slime',        ...S100 },
+  pirate:       { folder: '/sprites/characters/soldier',    ...S100 },
+  wendigo:      { folder: '/sprites/characters/werebear',   ...S100, attackFrames: 9 },
+  kamikazeGoblin:{ folder: '/sprites/characters/orc',       ...S100 },
+  farmerGoblin: { folder: '/sprites/characters/orc',        ...S100 },
 
-  // ── Legion (Red) units ────────────────────────────────────────────────────
-  orcPawn:      { folder: '/sprites/characters/orc' },
-  orcWarrior:   { folder: '/sprites/enemies/armored-orc' },
-  orcSpearman:  { folder: '/sprites/characters/elite-orc' },
-  orcArcher:    { folder: '/sprites/enemies/skeleton-archer' },
-  orcHealer:    { folder: '/sprites/enemies/evil-wizard-2' },
-  orcMage:      { folder: '/sprites/characters/fire-wizard' },
+  // ── 100×100 large frame counts (barbarian-warrior: 28 idle, 14 walk, 53 atk) ──
+  axeman:       { folder: '/sprites/characters/barbarian-warrior', frameW: 100, frameH: 100, idleFrames: 28, walkFrames: 14, attackFrames: 53 },
+  minotaur:     { folder: '/sprites/characters/barbarian-warrior', frameW: 100, frameH: 100, idleFrames: 28, walkFrames: 14, attackFrames: 53 },
+  borg:         { folder: '/sprites/characters/barbarian-warrior', frameW: 100, frameH: 100, idleFrames: 28, walkFrames: 14, attackFrames: 53 },
 
-  // ── Heroes & Champions ──────────────────────────────────────────────────────
-  warrior:      { folder: '/sprites/characters/fantasy-warrior' },
-  archer:       { folder: '/sprites/characters/archer' },
-  lancer:       { folder: '/sprites/characters/lancer' },
-  priest:       { folder: '/sprites/characters/priest' },
-  arthax:       { folder: '/sprites/characters/fantasy-warrior' },
-  kanji:        { folder: '/sprites/characters/human-mage' },
-  katan:        { folder: '/sprites/characters/archer' },
-  grum:         { folder: '/sprites/characters/knight' },
-  gangblanc:    { folder: '/sprites/characters/shadow-warrior' },
-  okomo:        { folder: '/sprites/characters/spirit_boxer' },
-  zhinja:       { folder: '/sprites/characters/wind-hashashin', walkFile: 'run.png' },
-  borg:         { folder: '/sprites/characters/barbarian-warrior' },
+  // ── 128×128 units (mages, guardians, wizards) ──────────────────────────
+  mage:         { folder: '/sprites/characters/human-mage',     frameW: 128, frameH: 128, idleFrames: 18, walkFrames: 23, attackFrames: 16 },
+  kanji:        { folder: '/sprites/characters/human-mage',     frameW: 128, frameH: 128, idleFrames: 18, walkFrames: 23, attackFrames: 16 },
+  necromancer:  { folder: '/sprites/characters/necromancer',     frameW: 128, frameH: 128, idleFrames: 10, walkFrames: 10, attackFrames: 16 },
+  orcMage:      { folder: '/sprites/characters/fire-wizard',    frameW: 128, frameH: 128, idleFrames: 7,  walkFrames: 6,  attackFrames: 4 },
+  fireElemental:{ folder: '/sprites/characters/fire-wizard',    frameW: 128, frameH: 128, idleFrames: 7,  walkFrames: 6,  attackFrames: 4 },
+  mammoth:      { folder: '/sprites/characters/frost-guardian',  frameW: 128, frameH: 128, idleFrames: 9,  walkFrames: 15, attackFrames: 21 },
+  yeti:         { folder: '/sprites/characters/frost-guardian',  frameW: 128, frameH: 128, idleFrames: 9,  walkFrames: 15, attackFrames: 21 },
+  steampunkMech:{ folder: '/sprites/characters/frost-guardian',  frameW: 128, frameH: 128, idleFrames: 9,  walkFrames: 15, attackFrames: 21 },
+  mineElemental:{ folder: '/sprites/characters/forest-guardian', frameW: 128, frameH: 128, idleFrames: 6,  walkFrames: 6,  attackFrames: 6 },
+  zhinja:       { folder: '/sprites/characters/wind-hashashin',  frameW: 128, frameH: 128, idleFrames: 18, walkFrames: 0,  attackFrames: 18, walkFile: 'run.png' },
 
-  // ── Champions (Sanctum T3) ────────────────────────────────────────────────
-  minotaur:     { folder: '/sprites/characters/barbarian-warrior' },
-  demon:        { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
-  mammoth:      { folder: '/sprites/characters/frost-guardian' },
-  dragon:       { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  // ── 96×96 units (dark-knight, shadow-warrior, crossbowman) ───────────────
+  assasin:      { folder: '/sprites/characters/dark-knight',    ...S96 },
+  gangblanc:    { folder: '/sprites/characters/shadow-warrior',  ...S96, attackFrames: 16 },
+  pirateCaptainHero: { folder: '/sprites/characters/dark-knight', ...S96 },
+  pirateCaptain:{ folder: '/sprites/characters/dark-knight',    ...S96 },
+  musketeer:    { folder: '/sprites/enemies/crossbowman',       frameW: 96, frameH: 96, idleFrames: 6, walkFrames: 8, attackFrames: 6, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  pirateGunner: { folder: '/sprites/enemies/crossbowman',       frameW: 96, frameH: 96, idleFrames: 6, walkFrames: 8, attackFrames: 6, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
 
-  // ── Creep / Neutral Monsters ──────────────────────────────────────────────
-  goblin:           { folder: '/sprites/characters/orc' },
-  spearGoblin:      { folder: '/sprites/characters/elite-orc' },
-  archerGoblin:     { folder: '/sprites/enemies/skeleton-archer' },
-  orc:              { folder: '/sprites/enemies/armored-orc' },
-  skeleton:         { folder: '/sprites/enemies/skeleton' },
-  slime:            { folder: '/sprites/enemies/slime' },
-  yeti:             { folder: '/sprites/characters/frost-guardian' },
-  fireElemental:    { folder: '/sprites/characters/fire-wizard' },
-  desertScorpio:    { folder: '/sprites/enemies/stormhead', attackFile: 'attack.png', walkFile: 'run.png' },
-  ogreBoss:         { folder: '/sprites/boss-demon', attackFile: 'cleave.png' },
-  steampunkMech:    { folder: '/sprites/characters/frost-guardian' },
-  desertVulture:    { folder: '/sprites/enemies/desert-vulture', attackFile: 'attack.png' },
-  mimic:            { folder: '/sprites/enemies/skeleton-enemy' },
-  mineElemental:    { folder: '/sprites/characters/forest-guardian' },
-  pirateCaptainHero:{ folder: '/sprites/characters/dark-knight' },
-  orcShaman:        { folder: '/sprites/enemies/bandit-necro' },
-  pirate:           { folder: '/sprites/characters/soldier' },
-  pirateGunner:     { folder: '/sprites/enemies/crossbowman', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  pirateCaptain:    { folder: '/sprites/characters/dark-knight' },
-  wendigo:          { folder: '/sprites/characters/werebear' },
-  kamikazeGoblin:   { folder: '/sprites/characters/orc' },
-  farmerGoblin:     { folder: '/sprites/characters/orc' },
-  slimeBlue:        { folder: '/sprites/enemies/slime' },
-  megaSlime:        { folder: '/sprites/enemies/slime' },
-  megaSlimeBlue:    { folder: '/sprites/enemies/slime' },
-  kingSlime:        { folder: '/sprites/enemies/slime' },
-  kingSlimeGreen:   { folder: '/sprites/enemies/slime' },
-  blackDragon:      { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  blueDragon:       { folder: '/sprites/dragon-white', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  whiteDragon:      { folder: '/sprites/dragon-white', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  yellowDragon:     { folder: '/sprites/dragon-red', idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
-  giantCrab:        { folder: '/sprites/enemies/stormhead', attackFile: 'attack.png', walkFile: 'run.png' },
-  armouredDemon:    { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
-  purpleDemon:      { folder: '/sprites/enemies/demon-minion1', idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+  // ── 162×162 (fantasy-warrior) ───────────────────────────────────────
+  arthax:       { folder: '/sprites/characters/fantasy-warrior', frameW: 162, frameH: 162, idleFrames: 10, walkFrames: 0, attackFrames: 7 },
 
-  // ── Animals (Miniworld) ──────────────────────────────────────────────────
-  // Animals are single spritesheets (not split into idle/walk/attack)
-  // Using the Miniworld canonical path as a single-frame idle
-  sheep:        { folder: '/sprites/miniworld/Animals', idleFile: 'Sheep.png', walkFile: 'Sheep.png', attackFile: 'Sheep.png', frameW: 16, frameH: 16, idleFrames: 4 },
-  hornedSheep:  { folder: '/sprites/miniworld/Animals', idleFile: 'HornedSheep.png', walkFile: 'HornedSheep.png', attackFile: 'HornedSheep.png', frameW: 16, frameH: 16, idleFrames: 4 },
-  chicken:      { folder: '/sprites/miniworld/Animals', idleFile: 'Chicken.png', walkFile: 'Chicken.png', attackFile: 'Chicken.png', frameW: 16, frameH: 16, idleFrames: 4 },
-  chick:        { folder: '/sprites/miniworld/Animals', idleFile: 'Chick.png', walkFile: 'Chick.png', attackFile: 'Chick.png', frameW: 16, frameH: 16, idleFrames: 2 },
-  horse:        { folder: '/sprites/miniworld/Animals', idleFile: 'Horse(32x32).png', walkFile: 'Horse(32x32).png', attackFile: 'Horse(32x32).png', frameW: 32, frameH: 32, idleFrames: 4 },
-  boar:         { folder: '/sprites/miniworld/Animals', idleFile: 'Boar.png', walkFile: 'Boar.png', attackFile: 'Boar.png', frameW: 16, frameH: 16, idleFrames: 4 },
-  pig:          { folder: '/sprites/miniworld/Animals', idleFile: 'Pig.png', walkFile: 'Pig.png', attackFile: 'Pig.png', frameW: 16, frameH: 16, idleFrames: 4 },
+  // ── 250×250 (evil-wizard-2) ──────────────────────────────────────
+  orcHealer:    { folder: '/sprites/enemies/evil-wizard-2',     frameW: 250, frameH: 250, idleFrames: 8, walkFrames: 8, attackFrames: 8 },
+
+  // ── 44×44 (spirit_boxer) ─────────────────────────────────────────
+  okomo:        { folder: '/sprites/characters/spirit_boxer',   frameW: 44, frameH: 44, idleFrames: 12, walkFrames: 19, attackFrames: 19 },
+
+  // ── 32×32 (bandit-necro) ────────────────────────────────────────
+  orcShaman:    { folder: '/sprites/enemies/bandit-necro',      frameW: 32, frameH: 32, idleFrames: 8, walkFrames: 8, attackFrames: 8 },
+
+  // ── 64×64 (skeleton-enemy) ───────────────────────────────────────
+  mimic:        { folder: '/sprites/enemies/skeleton-enemy',    frameW: 64, frameH: 64, idleFrames: 13, walkFrames: 13, attackFrames: 12 },
+
+  // ── 48×48 (desert-vulture) ──────────────────────────────────────
+  desertVulture:{ folder: '/sprites/enemies/desert-vulture',    frameW: 48, frameH: 48, idleFrames: 4, walkFrames: 4, attackFrames: 4, attackFile: 'attack.png' },
+
+  // ── Special size units ────────────────────────────────────────────
+  desertScorpio:{ folder: '/sprites/enemies/stormhead',         frameW: 124, frameH: 124, idleFrames: 9, walkFrames: 0, attackFrames: 9, attackFile: 'attack.png', walkFile: 'run.png' },
+  ogreBoss:     { folder: '/sprites/boss-demon',                frameW: 100, frameH: 100, idleFrames: 6, walkFrames: 6, attackFrames: 6, attackFile: 'cleave.png' },
+  giantCrab:    { folder: '/sprites/enemies/stormhead',         frameW: 124, frameH: 124, idleFrames: 9, walkFrames: 0, attackFrames: 9, attackFile: 'attack.png', walkFile: 'run.png' },
+  grum:         { folder: '/sprites/characters/knight',         ...S100, attackFrames: 7 },
+  katan:        { folder: '/sprites/characters/archer',         ...S100, attackFrames: 9 },
+
+  // ── Demons (demon-minion1 sprites use prefixed filenames) ─────────────────
+  demon:        { folder: '/sprites/enemies/demon-minion1',     frameW: 100, frameH: 100, idleFrames: 6, walkFrames: 6, attackFrames: 6, idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+  armouredDemon:{ folder: '/sprites/enemies/demon-minion1',     frameW: 100, frameH: 100, idleFrames: 6, walkFrames: 6, attackFrames: 6, idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+  purpleDemon:  { folder: '/sprites/enemies/demon-minion1',     frameW: 100, frameH: 100, idleFrames: 6, walkFrames: 6, attackFrames: 6, idleFile: 'Demon1_idle.png', walkFile: 'Demon1_walk.png', attackFile: 'Demon1_attack.png' },
+
+  // ── Dragons (PascalCase filenames) ───────────────────────────────────
+  dragon:       { folder: '/sprites/dragon-red',   frameW: 128, frameH: 128, idleFrames: 4, walkFrames: 6, attackFrames: 4, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  blackDragon:  { folder: '/sprites/dragon-red',   frameW: 128, frameH: 128, idleFrames: 4, walkFrames: 6, attackFrames: 4, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  blueDragon:   { folder: '/sprites/dragon-white', frameW: 128, frameH: 128, idleFrames: 4, walkFrames: 6, attackFrames: 4, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  whiteDragon:  { folder: '/sprites/dragon-white', frameW: 128, frameH: 128, idleFrames: 4, walkFrames: 6, attackFrames: 4, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+  yellowDragon: { folder: '/sprites/dragon-red',   frameW: 128, frameH: 128, idleFrames: 4, walkFrames: 6, attackFrames: 4, idleFile: 'Idle.png', walkFile: 'Walk.png', attackFile: 'Attack_1.png' },
+
+  // ── Animals (Miniworld single spritesheets) ───────────────────────────
+  sheep:        { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'Sheep.png', walkFile: 'Sheep.png', attackFile: 'Sheep.png' },
+  hornedSheep:  { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'HornedSheep.png', walkFile: 'HornedSheep.png', attackFile: 'HornedSheep.png' },
+  chicken:      { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'Chicken.png', walkFile: 'Chicken.png', attackFile: 'Chicken.png' },
+  chick:        { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 2, walkFrames: 2, attackFrames: 2, idleFile: 'Chick.png', walkFile: 'Chick.png', attackFile: 'Chick.png' },
+  horse:        { folder: '/sprites/miniworld/Animals', frameW: 32, frameH: 32, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'Horse(32x32).png', walkFile: 'Horse(32x32).png', attackFile: 'Horse(32x32).png' },
+  boar:         { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'Boar.png', walkFile: 'Boar.png', attackFile: 'Boar.png' },
+  pig:          { folder: '/sprites/miniworld/Animals', frameW: 16, frameH: 16, idleFrames: 4, walkFrames: 4, attackFrames: 4, idleFile: 'Pig.png', walkFile: 'Pig.png', attackFile: 'Pig.png' },
 };
 
 /** Kept for backward compat — returns same as getUnitSprites */
@@ -449,17 +474,20 @@ export function getUnitSprites(_faction: 'blue' | 'red', type: UnitType): Record
   const mapping = SPRITE_MAP[type];
   if (!mapping) return {};
 
-  const fw = mapping.frameW ?? 48;
-  const fh = mapping.frameH ?? 48;
-
+  const fw = mapping.frameW;
+  const fh = mapping.frameH;
   const idleFile   = mapping.idleFile   ?? 'idle.png';
   const walkFile   = mapping.walkFile   ?? 'walk.png';
   const attackFile = mapping.attackFile ?? 'attack1.png';
 
+  // Use idle as fallback for walk if walkFrames is 0
+  const walkSrc = mapping.walkFrames > 0 ? walkFile : idleFile;
+  const walkFrames = mapping.walkFrames > 0 ? mapping.walkFrames : mapping.idleFrames;
+
   return {
-    idle:     cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames   ?? 4, 200, fw, fh),
-    run:      cdnSprite(`${mapping.folder}/${walkFile}`,   mapping.walkFrames   ?? 4, 130, fw, fh),
-    attack:   cdnSprite(`${mapping.folder}/${attackFile}`, mapping.attackFrames ?? 4, 110, fw, fh),
-    interact: cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames   ?? 4, 120, fw, fh),
+    idle:     cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames,   160, fw, fh),
+    run:      cdnSprite(`${mapping.folder}/${walkSrc}`,    walkFrames,            100, fw, fh),
+    attack:   cdnSprite(`${mapping.folder}/${attackFile}`, mapping.attackFrames,  80,  fw, fh),
+    interact: cdnSprite(`${mapping.folder}/${idleFile}`,   mapping.idleFrames,   120, fw, fh),
   };
 }

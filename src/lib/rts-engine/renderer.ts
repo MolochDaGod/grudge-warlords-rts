@@ -295,27 +295,29 @@ function drawBuilding(ctx: CanvasRenderingContext2D, bld: Building) {
 
 function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
   const display = getUnitDisplay(unit.type);
-  const baseSize = unit.isHero ? 48 : 32;
+  const baseSize = unit.isHero ? 52 : 38;
   const size = Math.round(baseSize * display.scale);
   const half = size / 2;
 
   // Shadow
   if (display.shadow > 0) {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
-    ctx.ellipse(unit.pos.x, unit.pos.y + half * 0.5, half * 0.6, half * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(unit.pos.x, unit.pos.y + half * 0.4, half * 0.55, half * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Try sprite rendering
+  // Try sprite rendering — use neutral sprites too (all units get sprites)
   const faction = unit.faction === 'blue' ? 'blue' : 'red';
-  const sprites = unit.faction === 'neutral' ? null : getUnitSprites(faction as 'blue' | 'red', unit.type);
-  const animKey = unit.anim.action === 'run' ? 'run' : unit.anim.action === 'attack' ? 'attack' : 'idle';
-  const sprCfg = sprites?.[animKey];
+  const sprites = getUnitSprites(faction as 'blue' | 'red', unit.type);
+  const animKey = unit.anim.action === 'run' ? 'run' : unit.anim.action === 'attack' ? 'attack' :
+    unit.anim.action === 'interact' ? 'interact' : 'idle';
+  const sprCfg = sprites?.[animKey] ?? sprites?.['idle'];
 
   if (sprCfg) {
     const elapsed = unit.anim.elapsed * 1000;
     const frameIdx = Math.floor(elapsed / sprCfg.msPerFrame) % sprCfg.frames;
+    // Scale sprite to consistent display size regardless of source resolution
     drawSprite(ctx, sprCfg.src, frameIdx, sprCfg.frameW, sprCfg.frameH,
       unit.pos.x - half, unit.pos.y - half, size, size, unit.anim.flipX);
   } else {
