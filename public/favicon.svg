@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Shield background -->
+  <path d="M32 4 L56 16 L56 38 Q56 54 32 60 Q8 54 8 38 L8 16 Z" fill="#1a1a2e" stroke="#fbbf24" stroke-width="2"/>
+  <!-- Shield inner glow -->
+  <path d="M32 8 L52 18 L52 37 Q52 51 32 56 Q12 51 12 37 L12 18 Z" fill="#16213e"/>
+  <!-- Crossed swords -->
+  <!-- Left sword -->
+  <line x1="18" y1="46" x2="42" y2="18" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round"/>
+  <line x1="18" y1="46" x2="22" y2="42" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+  <line x1="16" y1="40" x2="24" y2="48" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Right sword -->
+  <line x1="46" y1="46" x2="22" y2="18" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round"/>
+  <line x1="46" y1="46" x2="42" y2="42" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+  <line x1="40" y1="48" x2="48" y2="40" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Crown accent -->
+  <path d="M24 14 L28 10 L32 14 L36 10 L40 14" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
