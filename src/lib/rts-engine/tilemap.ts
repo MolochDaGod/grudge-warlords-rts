@@ -106,35 +106,15 @@ function getEdgeMask(map: TilemapData, layer: number, x: number, y: number): num
 
 /**
  * Map 4-bit edge bitmask (NESW) to flat ground tile index (1-16).
- * Handles all 16 combinations of 4 edges.
+ *
+ * Corrected mapping: think of it as "which edges are covered"
+ * If N+S are covered, we're in the middle vertically. If E+W covered, middle horizontally.
+ * The tile position in the tileset grid:
+ *   Row 0 (top): tiles with NO north neighbor (top row of island)
+ *   Row 2 (bottom): tiles with NO south neighbor (bottom row)
+ *   Col 0 (left): tiles with NO west neighbor
+ *   Col 2 (right): tiles with NO east neighbor
  */
-const FLAT_BITMASK_TO_TILE: Record<number, number> = {
-  //          N E S W
-  0b0000: 16, // No neighbors → isolated island
-  0b0001:  8, // N only → bottom edge (tile below top)
-  0b0010:  4, // E only → left edge
-  0b0100:  2, // S only → top edge
-  0b1000:  6, // W only → right edge
-  0b0011:  7, // N+E → bottom-left corner
-  0b0110:  1, // S+E → top-left corner
-  0b1100:  3, // S+W → top-right corner
-  0b1001:  9, // N+W → bottom-right corner
-  0b0101:  5, // N+S → center vertical (treat as center)
-  0b1010:  5, // E+W → center horizontal (treat as center)
-  0b0111:  4, // N+E+S → left edge (open west)
-  0b1110:  2, // E+S+W → top edge (open north)  — wait, S+E+W
-  0b1101:  8, // N+S+W → bottom edge — wait, N+W+S
-  0b1011:  6, // N+E+W → right edge — wait, N+E+W -- no this is bottom
-  0b1111:  5, // All neighbors → center fill
-};
-
-// Corrected mapping: think of it as "which edges are covered"
-// If N+S are covered, we're in the middle vertically. If E+W covered, middle horizontally.
-// The tile position in the tileset grid:
-//   Row 0 (top): tiles with NO north neighbor (top row of island)
-//   Row 2 (bottom): tiles with NO south neighbor (bottom row)
-//   Col 0 (left): tiles with NO west neighbor
-//   Col 2 (right): tiles with NO east neighbor
 const FLAT_TILE_MAP: Record<number, number> = {
   0b0000: 16, // Isolated single tile
   0b0001: 11, // Only N → peninsula pointing down

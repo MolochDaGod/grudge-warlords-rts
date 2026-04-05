@@ -3,6 +3,13 @@ import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, getUnitSprites
 import { VFX_CONFIGS } from './vfx';
 import { getUnitDisplay, getBuildingDisplay } from './unit-defaults';
 import { spriteLoader, PRIORITY } from './sprite-loader';
+import {
+  TILESETS, TS_TILE,
+  LAYER_FLAT, LAYER_FOAM, LAYER_SHADOW_0, LAYER_SHADOW_1, LAYER_SHADOW_2,
+  LAYER_ELEV_1, LAYER_ELEV_2, LAYER_ELEV_3,
+  getTile, getFlatTileRect, getElevatedTileRect,
+  type TilemapData,
+} from './tilemap';
 
 // ── Image loading via SpriteLoader (replaces raw cache) ────────────────────────
 function loadImg(src: string, priority: number = PRIORITY.UNIT): HTMLImageElement | null {
@@ -96,8 +103,12 @@ export function renderGame(
   ctx.globalAlpha = 1;
 
   // ── Islands — Tiny Swords grass + cliff edges ─────────────────────────────
-  for (const isl of state.islands) {
-    drawTinySwordsIsland(ctx, isl, t);
+  // Use tilemap sprite renderer if tileset images are loaded; else procedural fallback
+  const tilemapRendered = state.tilemap ? drawTilemapTerrain(ctx, state.tilemap) : false;
+  if (!tilemapRendered) {
+    for (const isl of state.islands) {
+      drawTinySwordsIsland(ctx, isl, t);
+    }
   }
 
   // ── Y-sorted rendering: resources, buildings, units ──────────────────────
@@ -195,6 +206,90 @@ export function renderGame(
   // ── HUD ──────────────────────────────────────────────────────────────────
   drawHUD(ctx, state, canvasW, canvasH);
   drawMinimap(ctx, state, canvasW, canvasH);
+}
+
+// ── Tilemap terrain renderer ────────────────────────────────────────────────────
+/**
+ * Render a single tilemap layer using actual tileset sprite images.
+ * Falls back silently (tiles just won't draw) if the image isn't loaded yet.
+ *
+ * @param ctx      Canvas context
+ * @param map      The TilemapData generated from islandsToTilemap()
+ * @param layer    Which layer index to draw
+ * @param imgSrc   The CDN tileset URL to use
+ * @param getRectFn  Tile-index → {sx,sy,sw,sh} in the spritesheet
+ * @param srcW     Width of one grid tile in the destination (game world pixels)
+ * @param srcH     Height of one grid tile in the destination (game world pixels)
+ * @param alpha    Optional draw opacity (default 1)
+ */
+function drawTilemapLayer(
+  ctx: CanvasRenderingContext2D,
+  map: TilemapData,
+  layer: number,
+  imgSrc: string,
+  getRectFn: (tileIndex: number) => { sx: number; sy: number; sw: number; sh: number },
+  alpha = 1,
+  oversize = 1,  // multiplier > 1 draws tiles larger than TS_TILE (for foam/shadow 128px sprites on 64px grid)
+) {
+  const img = loadImg(imgSrc, PRIORITY.AMBIENT);
+  if (!img) return;
+  if (alpha !== 1) ctx.globalAlpha = alpha;
+  const drawSize = TS_TILE * oversize;
+  const offset = TS_TILE * (oversize - 1) * 0.5; // center the oversized sprite on the tile
+
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const tileIdx = getTile(map, layer, x, y);
+      if (tileIdx === 0) continue;
+      const { sx, sy, sw, sh } = getRectFn(tileIdx);
+      const dx = x * TS_TILE - offset;
+      const dy = y * TS_TILE - offset;
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, drawSize, drawSize);
+    }
+  }
+  if (alpha !== 1) ctx.globalAlpha = 1;
+}
+
+/**
+ * Render all tilemap terrain layers for the entire world.
+ * Call instead of (or with fallback to) drawTinySwordsIsland().
+ * Returns true if tileset images were loaded and rendering succeeded.
+ */
+function drawTilemapTerrain(ctx: CanvasRenderingContext2D, map: TilemapData): boolean {
+  const flatImg = spriteLoader.get(TILESETS.flatGround, PRIORITY.AMBIENT);
+  const elevImg = spriteLoader.get(TILESETS.elevatedGround, PRIORITY.AMBIENT);
+  const foamImg = spriteLoader.get(TILESETS.waterFoam, PRIORITY.AMBIENT);
+  const shadowImg = spriteLoader.get(TILESETS.shadow, PRIORITY.AMBIENT);
+
+  // If the primary tile images aren't loaded yet, signal caller to use procedural fallback
+  if (!flatImg || !elevImg) return false;
+
+  // Layer order: foam → flat ground → shadows → elevated tiers
+  if (foamImg) {
+    drawTilemapLayer(ctx, map, LAYER_FOAM, TILESETS.waterFoam, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 1, 2);
+  }
+
+  drawTilemapLayer(ctx, map, LAYER_FLAT, TILESETS.flatGround, getFlatTileRect);
+
+  if (shadowImg) {
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_0, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.65, 2);
+  }
+
+  drawTilemapLayer(ctx, map, LAYER_ELEV_1, TILESETS.elevatedGround, getElevatedTileRect);
+
+  if (shadowImg) {
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_1, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.55, 2);
+  }
+
+  drawTilemapLayer(ctx, map, LAYER_ELEV_2, TILESETS.elevatedGround, getElevatedTileRect);
+
+  if (shadowImg) {
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_2, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.45, 2);
+  }
+
+  drawTilemapLayer(ctx, map, LAYER_ELEV_3, TILESETS.elevatedGround, getElevatedTileRect);
+
+  return true;
 }
 
 // ── Tiny Swords island renderer ─────────────────────────────────────────────────

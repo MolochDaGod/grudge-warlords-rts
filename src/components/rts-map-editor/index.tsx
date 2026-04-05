@@ -19,6 +19,14 @@ const TILE_COLORS: Record<TileType, string> = {
   snow: '#e2e8f0',
 };
 
+const TILE_BG_CLASSES: Record<TileType, string> = {
+  water: 'bg-[#1e6091]',
+  grass: 'bg-[#4a7c59]',
+  rock: 'bg-[#6b7280]',
+  sand: 'bg-[#d4a574]',
+  snow: 'bg-[#e2e8f0]',
+};
+
 type PlacementTool =
   | 'terrain'
   | 'blue_castle' | 'red_castle'
@@ -438,8 +446,7 @@ export function RTSMapEditor({ width = 60, height = 40 }: RTSMapEditorProps) {
             <div className="flex flex-wrap gap-1">
               {(Object.keys(TILE_COLORS) as TileType[]).map(t => (
                 <button key={t}
-                  className={`w-7 h-7 rounded border-2 text-[9px] ${tool === 'terrain' && terrainBrush === t ? 'border-white' : 'border-zinc-600'}`}
-                  style={{ backgroundColor: TILE_COLORS[t] }}
+                  className = {`w-7 h-7 rounded border-2 text-[9px] ${TILE_BG_CLASSES[t]} ${tool === 'terrain' && terrainBrush === t ? 'border-white' : 'border-zinc-600'}`}
                   onClick={() => { setTool('terrain'); setTerrainBrush(t); }}
                   title={t}
                 />
@@ -455,6 +462,7 @@ export function RTSMapEditor({ width = 60, height = 40 }: RTSMapEditorProps) {
               <Label className="text-[10px] text-zinc-500">Brush Size: {brushSize}</Label>
               <input type="range" min="1" max="8" value={brushSize}
                 onChange={e => setBrushSize(Number(e.target.value))}
+title = "Brush size"
                 className="w-full h-1 mt-1" />
             </div>
           </CardContent>
@@ -500,8 +508,8 @@ export function RTSMapEditor({ width = 60, height = 40 }: RTSMapEditorProps) {
               <Trash2 className="h-3 w-3 mr-1" /> Clear Map
             </Button>
             <div className="flex items-center gap-2">
-              <input type="checkbox" checked={showGrid} onChange={e => setShowGrid(e.target.checked)} />
-              <Label className="text-[10px] text-zinc-400">Show Grid</Label>
+  <input type="checkbox" id = "show-grid" title = "Show tile grid" checked = { showGrid } onChange = { e => setShowGrid(e.target.checked) } />
+    <Label htmlFor="show-grid" className = "text-[10px] text-zinc-400" > Show Grid </Label>
             </div>
           </CardContent>
         </Card>
@@ -519,8 +527,7 @@ export function RTSMapEditor({ width = 60, height = 40 }: RTSMapEditorProps) {
       <div className="flex-1 overflow-auto border border-zinc-700 rounded-lg bg-zinc-950">
         <canvas
           ref={canvasRef}
-          className="cursor-crosshair"
-          style={{ imageRendering: 'pixelated' }}
+className = "cursor-crosshair [image-rendering:pixelated]"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

@@ -14,6 +14,7 @@
 import type { UnitType, BuildingType } from './types';
 import { getUnitSprites, getBuildingSprite, UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS } from './constants';
 import { VFX_CONFIGS } from './vfx';
+import { TILESETS } from './tilemap';
 
 // ── Load states ─────────────────────────────────────────────────────────────────
 
@@ -153,6 +154,8 @@ class SpriteLoader {
     this.preload([...new Set(buildingUrls)], PRIORITY.BUILDING);
     this.preload([...new Set(vfxUrls)], PRIORITY.VFX);
     this.preload([...new Set(creepUrls)], PRIORITY.CREEP);
+    // Tilesets — load terrain tile spritesheets at ambient priority
+    this.preload(Object.values(TILESETS), PRIORITY.AMBIENT);
   }
 
   // ── Progress API ──────────────────────────────────────────────────────────────

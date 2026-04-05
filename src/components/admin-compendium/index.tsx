@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Save, RotateCcw } from 'lucide-react';
-import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, getBuildingSprite } from '@/lib/rts-engine/constants';
+import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, ABILITY_DEFS, getUnitSprites, getBuildingSprite } from '@/lib/rts-engine/constants';
 import { VFX_CONFIGS, type VfxType } from '@/lib/rts-engine/vfx';
 import {
   getUnitDisplay, getBuildingDisplay,
@@ -18,7 +18,7 @@ import type { BuildingType } from '@/lib/rts-engine/types';
 const CDN = 'https://molochdagod.github.io/ObjectStore';
 
 // ── Category definitions ────────────────────────────────────────────────────────
-type Category = 'All' | 'Base Units' | 'Champion' | 'Soldier' | 'Legion' | 'Monster' | 'Animal' | 'Buildings';
+type Category = 'All' | 'Base Units' | 'Champion' | 'Soldier' | 'Legion' | 'Monster' | 'Animal' | 'Buildings' | 'Items' | 'Heroes';
 
 const UNIT_CATEGORIES: Record<string, Category> = {
   warrior:'Base Units', lancer:'Base Units', archer:'Base Units', priest:'Base Units', pawn:'Base Units',
@@ -85,6 +85,62 @@ function FxPreview({ type }: { type: VfxType }) {
   return <canvas ref={canvasRef} width={48} height={48} className="border border-zinc-700 rounded" />;
 }
 
+// ── Unit sprite preview canvas ───────────────────────────────────────────────────
+function UnitSpritePreview({ unitKey, size = 56 }: { unitKey: string; size?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const sprites = getUnitSprites('blue', unitKey as never);
+    const cfg = sprites.idle;
+    if (!cfg) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = cfg.src;
+    let raf = 0;
+    img.onload = () => {
+      const fps = 1000 / (cfg.msPerFrame ?? 160);
+      const draw = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, size, size);
+        const frame = Math.floor((performance.now() / (cfg.msPerFrame ?? 160)) % cfg.frames);
+        ctx.drawImage(img, frame * cfg.frameW, 0, cfg.frameW, cfg.frameH, 0, 0, size, size);
+        raf = requestAnimationFrame(draw);
+      };
+      void fps;
+      draw();
+    };
+    return () => cancelAnimationFrame(raf);
+  }, [unitKey, size]);
+  return <canvas ref={ canvasRef } width = { size } height = { size } className = "rounded [image-rendering:pixelated]" />;
+}
+
+// ── Building sprite preview canvas ──────────────────────────────────────────────
+function BuildingSpritePreview({ bldKey, size = 56 }: { bldKey: string; size?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    // Try blue faction first, fall back to neutral
+    const sprite = getBuildingSprite('blue', bldKey as never) ?? getBuildingSprite('neutral', bldKey as never);
+    if (!sprite) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = sprite.sheet;
+    let raf = 0;
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, sprite.sx, sprite.sy, sprite.sw, sprite.sh, 0, 0, size, size);
+      raf = requestAnimationFrame(() => { });
+    };
+    return () => cancelAnimationFrame(raf);
+  }, [bldKey, size]);
+  return <canvas ref={ canvasRef } width = { size } height = { size } className = "rounded [image-rendering:pixelated]" />;
+}
+
 export function AdminCompendium() {
   const [category, setCategory] = useState<Category>('All');
   const [selected, setSelected] = useState<string | null>(null);
@@ -105,7 +161,7 @@ export function AdminCompendium() {
 
   // ── Filtered items ──────────────────────────────────────────────────────────
   const filteredUnits = category === 'All' ? ALL_UNITS :
-    category === 'Buildings' ? [] :
+    (category === 'Buildings' || category === 'Items' || category === 'Heroes') ? [] :
     ALL_UNITS.filter(u => UNIT_CATEGORIES[u] === category);
   const showBuildings = category === 'All' || category === 'Buildings';
 
@@ -225,11 +281,11 @@ export function AdminCompendium() {
 
       {/* Category tabs */}
       <div className="flex gap-1 p-2 bg-zinc-900 border-b border-zinc-800 shrink-0 flex-wrap">
-        {(['All','Base Units','Champion','Soldier','Legion','Monster','Animal','Buildings'] as Category[]).map(c => (
+        {(['All', 'Base Units', 'Champion', 'Soldier', 'Legion', 'Monster', 'Animal', 'Buildings', 'Items', 'Heroes'] as Category[]).map(c => (
           <Button key={c} size="sm" variant={category === c ? 'default' : 'ghost'}
             onClick={() => { setCategory(c); setSelected(null); setSelectedAll(new Set()); }}
             className="text-[10px] h-7">
-            {c} {c === 'Buildings' ? `(${ALL_BUILDINGS.length})` : c === 'All' ? `(${ALL_UNITS.length})` : `(${ALL_UNITS.filter(u => UNIT_CATEGORIES[u] === c).length})`}
+  { c } { c === 'Buildings' ? `(${ALL_BUILDINGS.length})` : c === 'All' ? `(${ALL_UNITS.length})` : c === 'Items' ? `(${Object.keys(ITEM_DEFS).length})` : c === 'Heroes' ? `(${HERO_CONFIGS.length})` : `(${ALL_UNITS.filter(u => UNIT_CATEGORIES[u] === c).length})` }
           </Button>
         ))}
       </div>
@@ -249,6 +305,9 @@ export function AdminCompendium() {
                   className={`cursor-pointer transition-all ${isSelected ? 'border-amber-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'}`}
                   onClick={() => setSelected(key)}>
                   <CardContent className="p-2 text-center">
+  <div className="flex justify-center mb-1" >
+    <UnitSpritePreview unitKey={ key } size = { 40} />
+      </div>
                     <div className="text-xs font-bold text-zinc-200 truncate">{name}</div>
                     <div className="text-[9px] text-zinc-500">{UNIT_CATEGORIES[key]}</div>
                     {cfg && (
@@ -275,6 +334,9 @@ export function AdminCompendium() {
                   className={`cursor-pointer transition-all ${isSelected ? 'border-amber-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'}`}
                   onClick={() => setSelected(key)}>
                   <CardContent className="p-2 text-center">
+  <div className="flex justify-center mb-1" >
+    <BuildingSpritePreview bldKey={ key } size = { 40} />
+      </div>
                     <div className="text-xs font-bold text-zinc-200 truncate">{key.charAt(0).toUpperCase() + key.slice(1)}</div>
                     <div className="text-[9px] text-zinc-500">Building T{cfg.techTier}</div>
                     <div className="text-[8px] text-zinc-600 mt-1">
@@ -286,6 +348,71 @@ export function AdminCompendium() {
                     </div>
                   </CardContent>
                 </Card>
+              );
+            })}
+
+{/* Item cards */ }
+{
+  category === 'Items' && Object.values(ITEM_DEFS).map(item => {
+    const RARITY_COLOR: Record<string, string> = {
+      common: 'text-zinc-400', uncommon: 'text-green-400', rare: 'text-blue-400',
+      epic: 'text-purple-400', legendary: 'text-amber-400',
+    };
+    return (
+      <Card key= { item.id }
+    className = "border-zinc-700 bg-zinc-900 hover:border-zinc-500 transition-all" >
+      <CardContent className="p-2 text-center" >
+        <div className="text-2xl mb-1" > { item.icon } </div>
+          < div className = "text-xs font-bold text-zinc-200 truncate" > { item.name } </div>
+            < div className = {`text-[9px] ${RARITY_COLOR[item.rarity] ?? 'text-zinc-400'}`
+  }> { item.rarity } </div>
+  < div className = "text-[8px] text-zinc-500 mt-0.5" > { item.slot } </div>
+  < div className = "flex flex-wrap gap-1 mt-1 justify-center" >
+  { item.bonusHp && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-red-400" > +{ item.bonusHp }HP</ Badge >}
+{ item.bonusDamage && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-orange-400" > +{ item.bonusDamage }DMG </Badge> }
+{ item.bonusArmor && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-blue-400" > +{ item.bonusArmor }ARM </Badge> }
+{ item.bonusSpeed && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-green-400" > +{ item.bonusSpeed }SPD </Badge> }
+{ item.healAmount && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-green-300" > +{ item.healAmount }heal </Badge> }
+{ item.manaRestore && <Badge variant="outline" className = "text-[8px] h-3 px-1 text-indigo-400" > +{ item.manaRestore }mp </Badge> }
+<Badge variant="outline" className = "text-[8px] h-3 px-1 text-yellow-400" > { item.goldValue }g </Badge>
+  </div>
+  </CardContent>
+  </Card>
+              );
+            })}
+
+{/* Hero cards */ }
+{
+  category === 'Heroes' && HERO_CONFIGS.map(hero => {
+    const sprites = getUnitSprites('blue', hero.type as never);
+    const hasSprite = !!sprites.idle;
+    void hasSprite;
+    return (
+      <Card key= { hero.type }
+    className = {`cursor-pointer transition-all ${selected === hero.type ? 'border-amber-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-900 hover:border-amber-800'}`
+  }
+                  onClick = {() => setSelected(hero.type)}>
+  <CardContent className="p-2 text-center" >
+    <div className="flex justify-center mb-1" >
+      <UnitSpritePreview unitKey={ hero.type } size = { 40} />
+        </div>
+        < div className = "text-xs font-bold text-amber-300 truncate" > { hero.name } </div>
+          < div className = "text-[9px] text-zinc-500 italic" > { hero.title } </div>
+            < div className = "text-[8px] text-zinc-600 mt-1" > HP: { hero.hp } MP: { hero.mana } </div>
+              < div className = "flex gap-1 mt-1 justify-center flex-wrap" >
+              {
+                hero.abilities.slice(0, 3).map(ab => (
+                  <span key= { ab } className = "text-[10px]" title = { ABILITY_DEFS[ab]?.name ?? ab } > { ABILITY_DEFS[ab]?.icon ?? '?' } </span>
+                ))
+              }
+{
+  hero.abilities[3] && (
+    <span className="text-[10px] border border-amber-600 rounded px-0.5" title = {`Ultimate: ${ABILITY_DEFS[hero.abilities[3]]?.name ?? hero.abilities[3]}`
+}> { ABILITY_DEFS[hero.abilities[3]]?.icon ?? '★' } </span>
+                      )}
+</div>
+  </CardContent>
+  </Card>
               );
             })}
           </div>
@@ -304,8 +431,9 @@ export function AdminCompendium() {
             return (
               <div className="space-y-3">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-zinc-100">{name}</div>
-                  <Badge variant="outline" className="text-[10px]">{UNIT_CATEGORIES[selected]}</Badge>
+    <div className="flex justify-center mb-2" >
+      <UnitSpritePreview unitKey={ selected } size = { 72} />
+        </div>
                   {heroConfig && <Badge variant="secondary" className="text-[10px] ml-1">HERO</Badge>}
                 </div>
 
@@ -327,18 +455,21 @@ export function AdminCompendium() {
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Shadow</Label>
                     <input type="range" min="0" max="10" value={display.shadow ?? 2} className="flex-1 h-1"
+  title = "Shadow offset in pixels"
                       onChange={e => editUnit(selected, 'shadow', Number(e.target.value))} />
                     <span className="text-[10px] text-zinc-300 w-6 text-right">{display.shadow ?? 2}px</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Scale</Label>
                     <input type="range" min="0.3" max="2.0" step="0.1" value={display.scale ?? 1.0} className="flex-1 h-1"
+  title = "Display scale multiplier"
                       onChange={e => editUnit(selected, 'scale', Number(e.target.value))} />
                     <span className="text-[10px] text-zinc-300 w-6 text-right">×{display.scale ?? 1}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Facing</Label>
                     <select value={display.facingMode ?? 'target'} className="flex-1 h-6 text-[10px] bg-zinc-800 border border-zinc-700 rounded"
+title = "Facing mode"
                       onChange={e => editUnit(selected, 'facingMode', e.target.value)}>
                       <option value="target">Face Target</option>
                       <option value="movement">Face Movement</option>
@@ -347,6 +478,7 @@ export function AdminCompendium() {
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Projectile</Label>
                     <select value={display.projectile ?? 'none'} className="flex-1 h-6 text-[10px] bg-zinc-800 border border-zinc-700 rounded"
+title = "Projectile style"
                       onChange={e => editUnit(selected, 'projectile', e.target.value)}>
                       {PROJECTILE_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
@@ -359,6 +491,7 @@ export function AdminCompendium() {
                   <div className="flex items-center gap-2">
                     <FxPreview type={(display.hitFx ?? 'retro_white_a') as VfxType} />
                     <select value={display.hitFx ?? 'retro_white_a'} className="flex-1 h-6 text-[10px] bg-zinc-800 border border-zinc-700 rounded"
+title = "Hit visual effect"
                       onChange={e => editUnit(selected, 'hitFx', e.target.value)}>
                       {FX_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
@@ -389,6 +522,9 @@ export function AdminCompendium() {
             return (
               <div className="space-y-3">
                 <div className="text-center">
+    <div className="flex justify-center mb-2" >
+      <BuildingSpritePreview bldKey={ selected } size = { 72} />
+        </div>
                   <div className="text-lg font-bold text-zinc-100">{selected.charAt(0).toUpperCase() + selected.slice(1)}</div>
                   <Badge variant="outline" className="text-[10px]">Building T{cfg.techTier}</Badge>
                 </div>
@@ -413,12 +549,14 @@ export function AdminCompendium() {
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Shadow</Label>
                     <input type="range" min="0" max="10" value={display.shadow ?? 3} className="flex-1 h-1"
+  title = "Shadow offset in pixels"
                       onChange={e => editBuilding(selected, 'shadow', Number(e.target.value))} />
                     <span className="text-[10px] text-zinc-300 w-6 text-right">{display.shadow ?? 3}px</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Scale</Label>
                     <input type="range" min="0.5" max="2.0" step="0.1" value={display.scale ?? 1.0} className="flex-1 h-1"
+  title = "Display scale multiplier"
                       onChange={e => editBuilding(selected, 'scale', Number(e.target.value))} />
                     <span className="text-[10px] text-zinc-300 w-6 text-right">×{display.scale ?? 1}</span>
                   </div>
@@ -446,6 +584,7 @@ export function AdminCompendium() {
                   <div className="flex items-center gap-2">
                     <Label className="text-[10px] text-zinc-500 w-16">Active FX</Label>
                     <select value={display.activeFx ?? ''} className="flex-1 h-6 text-[10px] bg-zinc-800 border border-zinc-700 rounded"
+title = "Active visual effect"
                       onChange={e => editBuilding(selected, 'activeFx', e.target.value || null)}>
                       <option value="">None</option>
                       {['firespin','vortex','building_fire','building_smoke'].map(f => <option key={f} value={f}>{f}</option>)}
@@ -469,6 +608,76 @@ export function AdminCompendium() {
               </div>
             );
           })()}
+
+{/* Hero detail panel (Heroes tab) */ }
+{
+  selected && category === 'Heroes' && (() => {
+    const hero = HERO_CONFIGS.find(h => h.type === selected);
+    if (!hero) return null;
+    return (
+      <div className= "space-y-3" >
+      <div className="text-center" >
+        <div className="flex justify-center mb-2" >
+          <UnitSpritePreview unitKey={ hero.type } size = { 72} />
+            </div>
+            < div className = "text-lg font-bold text-amber-300" > { hero.name } </div>
+              < div className = "text-xs text-zinc-400 italic" > { hero.title } </div>
+                </div>
+
+                < div className = "grid grid-cols-3 gap-1 text-[10px]" >
+                  <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-red-400" > HP < /span> {hero.hp}</div >
+                    <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-blue-400" > MP < /span> {hero.mana}</div >
+                      <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-orange-400" > DMG < /span> {hero.damage}</div >
+                        <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-cyan-400" > ARM < /span> {hero.armor}</div >
+                          <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-green-400" > SPD < /span> {hero.speed}</div >
+                            <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-purple-400" > RNG < /span> {hero.range}</div >
+                              </div>
+
+                              < div className = "text-[9px] text-zinc-500 space-y-0.5" >
+                                <div>+{ hero.hpPerLevel } HP / +{ hero.manaPerLevel } MP per level </div>
+                                  < div > Summoned at: <span className="text-zinc-300" > { hero.summonedAt } < /span> · Revive: <span className="text-yellow-400">{hero.reviveCost}g</span > / {hero.reviveTime}s</div >
+                                    </div>
+
+                                    < div className = "space-y-2" >
+                                      <Label className="text-xs text-zinc-400 font-bold" > Abilities </Label>
+    {
+      hero.abilities.map((abId, i) => {
+        const ab = ABILITY_DEFS[abId];
+        if (!ab) return null;
+        return (
+          <div key= { abId } className = {`p-2 rounded border ${ab.isUltimate ? 'border-amber-600 bg-amber-950/30' : 'border-zinc-700 bg-zinc-800'}`
+      }>
+      <div className="flex items-center gap-2" >
+      <span className="text-base" > { ab.icon } </span>
+      < div className = "flex-1" >
+      <div className="text-[11px] font-bold text-zinc-200" > { ab.name } </div>
+      < div className = "text-[9px] text-zinc-400" > { ab.description } </div>
+      </div>
+                          { ab.isUltimate && <Badge variant="outline" className = "text-[8px] text-amber-400 border-amber-600" > ULT </Badge> }
+        </div>
+        < div className = "flex gap-2 mt-1 text-[9px]" >
+        { ab.cooldown > 0 && <span className="text-cyan-400"> CD: { ab.cooldown }s </span>}
+    { ab.manaCost > 0 && <span className="text-blue-400" > MP: { ab.manaCost } </span> }
+    <span className="text-zinc-500" > Rank { i + 1 } req: Lv{ ab.levelRequired } </span>
+      </div>
+    {
+      ab.effectPerRank.length > 0 && ab.effectPerRank[0] > 0 && (
+        <div className="flex gap-1 mt-1" >
+        {
+          ab.effectPerRank.map((v, r) => (
+            <Badge key= { r } variant = "secondary" className = "text-[8px]" > R{ r+ 1}: { v } </Badge>
+                            ))
+    }
+    </div>
+                        )
+  }
+                      </div>
+                    );
+})}
+</div>
+  </div>
+            );
+          }) ()}
         </div>
       </div>
     </div>
