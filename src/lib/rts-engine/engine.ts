@@ -14,6 +14,11 @@ import { computePathWaypoints, isOnIsland } from './pathfinding';
 import { HIT_VFX, randomRetroCrit } from './vfx';
 import { fxController } from './fx-controller';
 import { getUnitDisplay } from './unit-defaults';
+import { islandsToTilemap } from './tilemap';
+import type { Ship } from './ships';
+import { SHIP_CONFIGS, makeShip, processSinking, updateShipHeading, shipDist, shipNorm, calcBroadsideDamage } from './ships';
+import type { ShipBuildOrder } from './ships';
+import { getHomeSpawnPoint } from './island-system';
 
 let _nextId = 1;
 function uid(): string { return String(_nextId++); }
@@ -185,6 +190,13 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
     attackMoveMode: false,
     lastEventPos: null,
     buildMenuOpen: false,
+    tilemap: islandsToTilemap(islands, mapDef.worldW, mapDef.worldH),
+    islandNodes: [],
+    seaRoutes: [],
+    weeklyState: null,
+    compiledFaction: null,
+    ships: new Map(),
+    shipBuildQueues: new Map(),
   };
 
   // Castles (pre-built)
@@ -622,6 +634,131 @@ export function updateGame(state: GameState, dt: number): void {
           state.vfxEffects.set(uid(), { id: uid(), pos: { ...ally.pos }, type: 'holy_heal', age: 0, duration: 0.5 });
         }
       }
+    }
+  }
+
+  // ── Ship movement & combat ──────────────────────────────────────────────
+  for (const [sid, ship] of state.ships) {
+    if (ship.state === 'destroyed') continue;
+
+    // Sinking animation
+    if (ship.state === 'sinking') {
+      ship.sinkTimer += dt;
+      if (ship.sinkTimer >= 3) {
+        // Process sinking: crew dies, captain washes up
+        const result = processSinking(ship);
+        for (const crewId of result.crewIds) {
+          const crewUnit = state.units.get(crewId);
+          if (crewUnit && crewUnit.state !== 'dead') {
+            crewUnit.state = 'dead';
+            crewUnit.hp = 0;
+            crewUnit.deathTimer = 0;
+          }
+        }
+        // Captain survives — teleport to home island
+        if (result.captainSurvives && result.captainId) {
+          const captain = state.units.get(result.captainId);
+          if (captain && captain.state !== 'dead') {
+            const spawnPos = getHomeSpawnPoint(state.islandNodes, ship.faction);
+            // Fallback to faction castle if no island nodes
+            if (spawnPos.x === 0 && spawnPos.y === 0) {
+              for (const [, b] of state.buildings) {
+                if (b.faction === ship.faction && (b.type === 'castle' || b.type === 'keep' || b.type === 'fortress')) {
+                  spawnPos.x = b.pos.x + 60;
+                  spawnPos.y = b.pos.y + 60;
+                  break;
+                }
+              }
+            }
+            captain.pos = spawnPos;
+            captain.hp = Math.max(1, Math.round(captain.maxHp * 0.1)); // 10% HP
+            captain.state = 'idle';
+            captain.anim.action = 'idle';
+            state.floatingTexts.push({ id: uid(), pos: { ...spawnPos }, text: `${captain.type} washed ashore!`, color: '#ffd700', age: 0, maxAge: 3 });
+          }
+        }
+        ship.state = 'destroyed';
+        state.ships.delete(sid);
+      }
+      continue;
+    }
+
+    // Ship movement
+    if (ship.state === 'moving' && ship.target) {
+      const cfg = SHIP_CONFIGS[ship.type];
+      const dx = ship.target.x - ship.pos.x;
+      const dy = ship.target.y - ship.pos.y;
+      const d = Math.hypot(dx, dy);
+      const targetAngle = Math.atan2(dy, dx);
+      ship.heading = updateShipHeading(ship.heading, targetAngle, cfg.turnSpeed, dt);
+      const speed = cfg.speed * dt;
+
+      if (d < speed) {
+        ship.pos = { ...ship.target };
+        if (ship.waypoints.length > 0) {
+          ship.target = ship.waypoints.shift()!;
+        } else {
+          ship.target = null;
+          ship.state = 'idle';
+        }
+      } else {
+        ship.pos.x += Math.cos(ship.heading) * speed;
+        ship.pos.y += Math.sin(ship.heading) * speed;
+      }
+    }
+
+    // Ship broadside combat
+    if (ship.attackTargetId && ship.state !== 'moving') {
+      const target = state.ships.get(ship.attackTargetId);
+      if (!target || target.state === 'sinking' || target.state === 'destroyed') {
+        ship.attackTargetId = null;
+        ship.state = 'idle';
+        continue;
+      }
+      const cfg = SHIP_CONFIGS[ship.type];
+      if (cfg.cannonCount === 0) { ship.attackTargetId = null; continue; }
+
+      const d = shipDist(ship.pos, target.pos);
+      if (d <= cfg.cannonRange) {
+        ship.state = 'attacking';
+        if (ship.cannonCooldown <= 0) {
+          const dmg = calcBroadsideDamage(ship.type);
+          target.hp -= dmg;
+          ship.cannonCooldown = cfg.cannonCooldown;
+          state.floatingTexts.push({ id: uid(), pos: { ...target.pos }, text: `-${dmg}`, color: '#ff4444', age: 0, maxAge: 1 });
+          fxController.playHit({ ...target.pos }, 'bolt', state);
+          if (target.hp <= 0) {
+            target.hp = 0;
+            target.state = 'sinking';
+            target.sinkTimer = 0;
+          }
+        }
+      } else {
+        // Move toward target
+        ship.target = { ...target.pos };
+        ship.state = 'moving';
+      }
+    }
+
+    if (ship.cannonCooldown > 0) ship.cannonCooldown -= dt;
+  }
+
+  // ── Docks ship building ──────────────────────────────────────────────────
+  for (const [docksId, order] of state.shipBuildQueues) {
+    const docks = state.buildings.get(docksId);
+    if (!docks || docks.underConstruction || docks.type !== 'docks') {
+      state.shipBuildQueues.delete(docksId);
+      continue;
+    }
+    const cfg = SHIP_CONFIGS[order.type];
+    order.progress += dt / cfg.buildTime;
+    if (order.progress >= 1) {
+      const pos = { x: docks.pos.x + 50, y: docks.pos.y + 100 };
+      const ship = makeShip(docks.faction, order.type, pos, order.captainId, docksId);
+      ship.buildProgress = 1;
+      ship.state = 'docked';
+      state.ships.set(ship.id, ship);
+      state.shipBuildQueues.delete(docksId);
     }
   }
 

@@ -321,11 +321,17 @@ export interface AIState {
 export type ControlGroups = Record<number, Set<string>>;
 
 // ── Full Game State ────────────────────────────────────────────────────────────
+import type { Ship, ShipBuildOrder } from './ships';
+import type { TilemapData } from './tilemap';
+import type { IslandNode, SeaRoute, WeeklyState } from './island-system';
+import type { CompiledFaction } from './design-enforcer';
+
 export interface GameState {
   tick: number;
   timeElapsed: number;
   units: Map<string, Unit>;
   buildings: Map<string, Building>;
+  ships: Map<string, Ship>;
   resources: Map<string, Resource>;
   projectiles: Map<string, Projectile>;
   vfxEffects: Map<string, VfxEffect>;
@@ -364,6 +370,16 @@ export interface GameState {
   lastEventPos: Vec2 | null;
   /** Build menu sub-mode: null=closed, 'buildings'=open */
   buildMenuOpen: boolean;
+  /** Tilemap data (Tiny Swords 9-layer terrain) */
+  tilemap: TilemapData | null;
+  /** Island network (8-node weekly system) */
+  islandNodes: IslandNode[];
+  seaRoutes: SeaRoute[];
+  weeklyState: WeeklyState | null;
+  /** Compiled faction design (enforces tech tree from designer board) */
+  compiledFaction: CompiledFaction | null;
+  /** Ship build queues per docks building */
+  shipBuildQueues: Map<string, ShipBuildOrder>;
 }
 
 // ── Config types ───────────────────────────────────────────────────────────────
