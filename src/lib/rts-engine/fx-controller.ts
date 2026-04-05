@@ -18,7 +18,10 @@ import type { Vec2 } from './types';
 import type { GameState } from './types';
 import type { VfxType } from './vfx';
 
-const CDN = 'https://molochdagod.github.io/ObjectStore';
+// Audio is served locally from public/audio/fx/ (Vite serves from public/)
+// Also on CDN at molochdagod.github.io/ObjectStore/audio/fx/ after push
+const LOCAL_FX = '/audio/fx';
+const CDN_FX = 'https://molochdagod.github.io/ObjectStore/audio/fx';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Audio Manager
@@ -30,32 +33,39 @@ interface SoundDef {
   pool?: number;
 }
 
+/** Helper: local path first (fast, no CORS), CDN fallback */
+function fx(name: string, ext = 'ogg'): string[] {
+  return [`${LOCAL_FX}/${name}.${ext}`, `${CDN_FX}/${name}.${ext}`];
+}
+
 const SOUND_DEFS: Record<string, SoundDef> = {
-  // Combat
-  sword_clash:    { src: [`${CDN}/audio/fx/sword_clash.ogg`, `${CDN}/audio/fx/sword_clash.mp3`], volume: 0.4 },
-  arrow_fire:     { src: [`${CDN}/audio/fx/arrow_fire.ogg`, `${CDN}/audio/fx/arrow_fire.mp3`], volume: 0.3 },
-  arrow_hit:      { src: [`${CDN}/audio/fx/arrow_hit.ogg`, `${CDN}/audio/fx/arrow_hit.mp3`], volume: 0.35 },
-  magic_cast:     { src: [`${CDN}/audio/fx/magic_cast.ogg`, `${CDN}/audio/fx/magic_cast.mp3`], volume: 0.4 },
-  fire_impact:    { src: [`${CDN}/audio/fx/fire_impact.ogg`, `${CDN}/audio/fx/fire_impact.mp3`], volume: 0.45 },
-  thunder_strike: { src: [`${CDN}/audio/fx/thunder.ogg`, `${CDN}/audio/fx/thunder.mp3`], volume: 0.5 },
-  heal_pulse:     { src: [`${CDN}/audio/fx/heal.ogg`, `${CDN}/audio/fx/heal.mp3`], volume: 0.35 },
+  // Combat — mapped to real OGGs from Sound effects Pack 2
+  sword_clash:    { src: fx('sword_clash'),    volume: 0.4 },
+  arrow_fire:     { src: fx('arrow_fire', 'wav'), volume: 0.3 },
+  arrow_hit:      { src: fx('arrow_hit'),      volume: 0.35 },
+  magic_cast:     { src: fx('magic_cast'),     volume: 0.4 },
+  fire_impact:    { src: fx('fire_impact'),    volume: 0.45 },
+  thunder_strike: { src: fx('thunder'),        volume: 0.5 },
+  heal_pulse:     { src: fx('heal'),           volume: 0.35 },
+  cannon_fire:    { src: fx('cannon_fire'),    volume: 0.5 },
+  ship_sink:      { src: fx('ship_sink'),      volume: 0.5 },
 
   // Units
-  unit_select:    { src: [`${CDN}/audio/fx/select.ogg`, `${CDN}/audio/fx/select.mp3`], volume: 0.3 },
-  unit_move:      { src: [`${CDN}/audio/fx/move.ogg`, `${CDN}/audio/fx/move.mp3`], volume: 0.25 },
-  unit_death:     { src: [`${CDN}/audio/fx/death.ogg`, `${CDN}/audio/fx/death.mp3`], volume: 0.35 },
-  hero_levelup:   { src: [`${CDN}/audio/fx/levelup.ogg`, `${CDN}/audio/fx/levelup.mp3`], volume: 0.5 },
+  unit_select:    { src: fx('select'),         volume: 0.3 },
+  unit_move:      { src: fx('move'),           volume: 0.25 },
+  unit_death:     { src: fx('death'),          volume: 0.35 },
+  hero_levelup:   { src: fx('levelup'),        volume: 0.5 },
 
   // Buildings
-  build_start:    { src: [`${CDN}/audio/fx/build_start.ogg`, `${CDN}/audio/fx/build_start.mp3`], volume: 0.3 },
-  build_complete: { src: [`${CDN}/audio/fx/build_complete.ogg`, `${CDN}/audio/fx/build_complete.mp3`], volume: 0.4 },
-  train_complete: { src: [`${CDN}/audio/fx/train.ogg`, `${CDN}/audio/fx/train.mp3`], volume: 0.35 },
+  build_start:    { src: fx('build_start'),    volume: 0.3 },
+  build_complete: { src: fx('build_complete'),  volume: 0.4 },
+  train_complete: { src: fx('train'),          volume: 0.35 },
 
   // UI
-  click:          { src: [`${CDN}/audio/fx/click.ogg`, `${CDN}/audio/fx/click.mp3`], volume: 0.2 },
-  error:          { src: [`${CDN}/audio/fx/error.ogg`, `${CDN}/audio/fx/error.mp3`], volume: 0.3 },
-  victory:        { src: [`${CDN}/audio/fx/victory.ogg`, `${CDN}/audio/fx/victory.mp3`], volume: 0.6 },
-  defeat:         { src: [`${CDN}/audio/fx/defeat.ogg`, `${CDN}/audio/fx/defeat.mp3`], volume: 0.5 },
+  click:          { src: fx('click'),          volume: 0.2 },
+  error:          { src: fx('error'),          volume: 0.3 },
+  victory:        { src: fx('victory'),        volume: 0.6 },
+  defeat:         { src: fx('defeat'),         volume: 0.5 },
 };
 
 class AudioManager {

@@ -17,12 +17,12 @@
  * Elevated ground: 24 tiles (4×6 grid — adds cliff face rows 17-24)
  */
 
-const CDN = 'https://molochdagod.github.io/ObjectStore';
-
 // ── Tile size constants ─────────────────────────────────────────────────────────
-export const TS_TILE = 64;           // Base tile size (game grid)
-export const TS_SHADOW_SIZE = 128;   // Shadow sprites are 128×128 placed on 64×64 grid
-export const TS_FOAM_SIZE = 128;     // Water foam sprites are 128×128 on 64×64 grid
+// Tiny Swords Free Pack uses 192×192 tiles (not 64×64)
+export const TS_TILE = 64;             // Game-grid tile size (display)
+export const TS_SPRITE_TILE = 192;     // Actual spritesheet tile size in source PNG
+export const TS_SHADOW_SIZE = 192;     // Shadow.png is 192×192 single sprite
+export const TS_FOAM_SIZE = 192;       // Water Foam.png frames are 192×192 (16 frames in 3072×192 strip)
 
 // ── Layer indices ───────────────────────────────────────────────────────────────
 export const LAYER_BG = 0;
@@ -42,14 +42,21 @@ export const LAYER_COUNT = 9;
 
 export type TileValue = number; // 0-24
 
-// ── Tileset CDN paths ───────────────────────────────────────────────────────────
+// ── Tileset paths — local public/ assets from Tiny Swords Free Pack ─────────────
+// These are served by Vite from public/sprites/tiny-swords/
 export const TILESETS = {
-  flatGround:     `${CDN}/sprites/miniworld/Terrain/Ground/Tilemap_Flat.png`,
-  elevatedGround: `${CDN}/sprites/miniworld/Terrain/Ground/Tilemap_Elevation.png`,
-  waterFoam:      `${CDN}/sprites/miniworld/Terrain/Water/Foam/Foam.png`,
-  shadow:         `${CDN}/sprites/miniworld/Terrain/Ground/Shadow.png`,
-  stairLeft:      `${CDN}/sprites/miniworld/Terrain/Ground/Stair_Left.png`,
-  stairRight:     `${CDN}/sprites/miniworld/Terrain/Ground/Stair_Right.png`,
+  /** 576×384 (3×2 grid of 192×192 tiles) — contains flat ground + elevated cliff tiles */
+  terrain1:     '/sprites/tiny-swords/terrain/Tilemap_color1.png',
+  terrain2:     '/sprites/tiny-swords/terrain/Tilemap_color2.png',
+  terrain3:     '/sprites/tiny-swords/terrain/Tilemap_color3.png',
+  terrain4:     '/sprites/tiny-swords/terrain/Tilemap_color4.png',
+  terrain5:     '/sprites/tiny-swords/terrain/Tilemap_color5.png',
+  /** 3072×192 (16 frames of 192×192 animated foam) */
+  waterFoam:    '/sprites/tiny-swords/terrain/Water Foam.png',
+  /** 192×192 single shadow sprite */
+  shadow:       '/sprites/tiny-swords/terrain/Shadow.png',
+  /** Water background solid color reference */
+  waterBg:      '/sprites/tiny-swords/terrain/Water Background color.png',
 };
 
 // ── Tilemap data structure ──────────────────────────────────────────────────────
@@ -254,20 +261,51 @@ export interface TileSourceRect {
   sx: number; sy: number; sw: number; sh: number;
 }
 
+/**
+ * Tiny Swords Free Pack tileset layout (Tilemap_color1.png = 576×384):
+ *
+ * The 576×384 sheet contains a 3×2 grid of 192×192 tile sections:
+ *   [0,0] Flat ground top-left     [1,0] Flat ground full    [2,0] Elevated top
+ *   [0,1] Flat ground bottom-left  [1,1] Stairs/connecting   [2,1] Elevated bottom (cliff face)
+ *
+ * For auto-tiling, we use sections of the tileset to draw ground and elevation.
+ * Each 192×192 section is drawn scaled down to TS_TILE (64px) in-game.
+ */
+const T = TS_SPRITE_TILE; // 192
+
 export function getFlatTileRect(tileIndex: number): TileSourceRect {
-  if (tileIndex < 1 || tileIndex > 16) return { sx: 64, sy: 64, sw: 64, sh: 64 }; // center fallback
-  const idx = tileIndex - 1;
-  const col = idx % 4;
-  const row = Math.floor(idx / 4);
-  return { sx: col * 64, sy: row * 64, sw: 64, sh: 64 };
+  // Map tile index to a source rect within the 576×384 tileset
+  // Flat ground occupies the left 2 columns (384×384 area)
+  // We subdivide each 192×192 section into a conceptual grid
+  if (tileIndex < 1 || tileIndex > 16) return { sx: T, sy: 0, sw: T, sh: T }; // center fill fallback
+
+  // Simplified mapping: just use the main 192×192 sections
+  // Tile 5 (center) → full grass section [1,0]
+  // Tiles 1-4 (top/corners) → top-left section [0,0]
+  // Tiles 7-9 (bottom corners) → bottom-left section [0,1]
+  // Tiles 13-16 (peninsulas) → stairs section [1,1]
+  const sectionMap: Record<number, { col: number; row: number }> = {
+    1: { col: 0, row: 0 }, 2: { col: 1, row: 0 }, 3: { col: 0, row: 0 },
+    4: { col: 0, row: 0 }, 5: { col: 1, row: 0 }, 6: { col: 0, row: 0 },
+    7: { col: 0, row: 1 }, 8: { col: 1, row: 0 }, 9: { col: 0, row: 1 },
+   10: { col: 0, row: 1 }, 11: { col: 1, row: 1 }, 12: { col: 0, row: 1 },
+   13: { col: 1, row: 1 }, 14: { col: 1, row: 1 }, 15: { col: 1, row: 1 },
+   16: { col: 1, row: 1 },
+  };
+  const s = sectionMap[tileIndex] ?? { col: 1, row: 0 };
+  return { sx: s.col * T, sy: s.row * T, sw: T, sh: T };
 }
 
 export function getElevatedTileRect(tileIndex: number): TileSourceRect {
-  if (tileIndex < 1 || tileIndex > 24) return { sx: 64, sy: 64, sw: 64, sh: 64 };
-  const idx = tileIndex - 1;
-  const col = idx % 4;
-  const row = Math.floor(idx / 4);
-  return { sx: col * 64, sy: row * 64, sw: 64, sh: 64 };
+  // Elevated tiles use the right column of the tileset
+  // [2,0] = elevated grass top, [2,1] = cliff face bottom
+  if (tileIndex < 1 || tileIndex > 26) return { sx: 2 * T, sy: 0, sw: T, sh: T };
+  if (tileIndex >= 17) {
+    // Cliff face tiles → bottom-right section [2,1]
+    return { sx: 2 * T, sy: T, sw: T, sh: T };
+  }
+  // Regular elevated ground → top-right section [2,0]
+  return { sx: 2 * T, sy: 0, sw: T, sh: T };
 }
 
 // ── Convert Island[] to tilemap ─────────────────────────────────────────────────

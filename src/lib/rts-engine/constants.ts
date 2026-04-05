@@ -260,63 +260,53 @@ export const PRIEST_HEAL_RANGE = 140;
 export const PRIEST_HEAL_AMOUNT = 18;
 export const PRIEST_HEAL_PULSE = 2.5;
 
-// ── Building Sprites — Miniworld TinySwords spritesheets from ObjectStore CDN ────
+// ── Building Sprites — Tiny Swords Free Pack (local assets) ───────────────────
 
 export interface BuildingSpriteFrame {
-  /** Spritesheet path under CDN root (without faction prefix) */
+  /** Local path to the building PNG (single full image, not spritesheet) */
   sheet: string;
-  /** Frame rect within spritesheet: source x, y, width, height */
+  /** Source rect (0,0,fullW,fullH for single images) */
   sx: number; sy: number; sw: number; sh: number;
   /** Display size in game world */
   displayW: number; displayH: number;
 }
 
-/** Faction-colored building sprite path resolver */
-function bldSheet(faction: 'blue' | 'red' | 'neutral', name: string): string {
-  if (faction === 'blue')    return `/sprites/miniworld/Buildings/Cyan/Cyan${name}.png`;
-  if (faction === 'red')     return `/sprites/miniworld/Buildings/Red/Red${name}.png`;
-  return `/sprites/miniworld/Buildings/Wood/${name}.png`;
+/**
+ * Tiny Swords Free Pack building sprites:
+ *   - Each building is a single PNG (not a spritesheet grid)
+ *   - Available per faction: blue, red, black, yellow
+ *   - Available buildings: Castle, Barracks, Archery, Tower, House1-3, Monastery
+ *   - Actual dimensions vary: Castle=320×256, others smaller
+ */
+function bldPath(faction: 'blue' | 'red' | 'neutral', name: string): string {
+  const fDir = faction === 'blue' ? 'blue' : faction === 'red' ? 'red' : 'black';
+  return `/sprites/tiny-swords/buildings/${fDir}/${name}.png`;
 }
 
-/**
- * Building sprite configs — maps BuildingType to frame coordinates in Miniworld spritesheets.
- * Each spritesheet is a grid of building variants; we pick the primary frame.
- * Dimensions based on actual PNG IHDR: Keep=96×64, Barracks=64×80, Tower=48×96,
- * Houses=48×64, Chapels=48×32, Market=48×64, Workshops=48×48, etc.
- */
 export function getBuildingSprite(faction: 'blue' | 'red' | 'neutral', type: BuildingType): BuildingSpriteFrame | null {
   const f = faction === 'neutral' ? 'neutral' : faction;
+  // Castle.png = 320×256 (single image)
+  // Barracks.png, Archery.png = ~192×192
+  // Tower.png = ~128×256
+  // House1/2/3.png = ~96×128
+  // Monastery.png = ~192×192
   switch (type) {
-    // Town Hall line — Keep spritesheet (96×64): 3 columns of 32×32, pick column by tier
-    case 'castle':   return { sheet: `${CDN}${bldSheet(f, 'Keep')}`, sx: 0,  sy: 0,  sw: 32, sh: 32, displayW: 128, displayH: 128 };
-    case 'keep':     return { sheet: `${CDN}${bldSheet(f, 'Keep')}`, sx: 32, sy: 0,  sw: 32, sh: 32, displayW: 128, displayH: 128 };
-    case 'fortress': return { sheet: `${CDN}${bldSheet(f, 'Keep')}`, sx: 64, sy: 0,  sw: 32, sh: 32, displayW: 128, displayH: 128 };
-    // Barracks (64×80): 2 cols of 32, pick top-left
-    case 'barracks': return { sheet: `${CDN}${bldSheet(f, 'Barracks')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 96 };
-    // Archery — use Barracks variant column 2
-    case 'archery':  return { sheet: `${CDN}${bldSheet(f, 'Barracks')}`, sx: 32, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 96 };
-    // Chapel (48×32): single row, pick first 32×32
-    case 'chapel':   return { sheet: `${CDN}${bldSheet(f, 'Chapels')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 96 };
-    // Workshop (48×48): pick 32×32 top-left
-    case 'workshop': return { sheet: `${CDN}${bldSheet(f, 'Workshops')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 64 };
-    // Sanctum — use Chapel variant col 2 or a larger chapel
-    case 'sanctum':  return { sheet: `${CDN}${bldSheet(f, 'Chapels')}`, sx: 16, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 96 };
-    // Tower (48×96): tall, pick 16×48 from top
-    case 'tower':    return { sheet: `${CDN}${bldSheet(f, 'Tower')}`, sx: 0, sy: 0, sw: 16, sh: 32, displayW: 64, displayH: 96 };
-    // House (48×64): pick 16×16 top-left
-    case 'house':    return { sheet: `${CDN}${bldSheet(f, 'Houses')}`, sx: 0, sy: 0, sw: 16, sh: 16, displayW: 48, displayH: 64 };
-    // Market (48×64)
-    case 'market':   return { sheet: `${CDN}${bldSheet(f, 'Market')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 64, displayH: 64 };
-    // Tavern (48×64)
-    case 'tavern':   return { sheet: `${CDN}${bldSheet(f, 'Taverns')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 64, displayH: 64 };
-    // Docks (64×32)
-    case 'docks':    return { sheet: `${CDN}${bldSheet(f, 'Docks')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 64 };
-    // Blacksmith — use Workshop variant
-    case 'blacksmith': return { sheet: `${CDN}${bldSheet(f, 'Workshops')}`, sx: 16, sy: 0, sw: 32, sh: 32, displayW: 64, displayH: 64 };
-    // Altar — use Chapel variant
-    case 'altar':    return { sheet: `${CDN}${bldSheet(f, 'Chapels')}`, sx: 0, sy: 0, sw: 32, sh: 32, displayW: 96, displayH: 96 };
-    // Gold mine — use Resources sheet
-    case 'goldmine': return { sheet: `${CDN}/sprites/miniworld/Buildings/Wood/Resources.png`, sx: 0, sy: 0, sw: 16, sh: 16, displayW: 64, displayH: 64 };
+    case 'castle':   return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
+    case 'keep':     return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
+    case 'fortress': return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 140, displayH: 112 };
+    case 'barracks': return { sheet: bldPath(f, 'Barracks'),   sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'archery':  return { sheet: bldPath(f, 'Archery'),    sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'chapel':   return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'sanctum':  return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'tower':    return { sheet: bldPath(f, 'Tower'),      sx: 0, sy: 0, sw: 128, sh: 256, displayW: 64,  displayH: 96 };
+    case 'house':    return { sheet: bldPath(f, 'House1'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 48,  displayH: 64 };
+    case 'market':   return { sheet: bldPath(f, 'House2'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 64,  displayH: 64 };
+    case 'tavern':   return { sheet: bldPath(f, 'House3'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 64,  displayH: 64 };
+    case 'workshop': return { sheet: bldPath(f, 'Barracks'),   sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 64 };
+    case 'blacksmith': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 192, displayW: 64,  displayH: 64 };
+    case 'altar':    return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'docks':    return { sheet: bldPath(f, 'Archery'),    sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 64 };
+    case 'goldmine': return null; // Rendered procedurally
     default: return null;
   }
 }

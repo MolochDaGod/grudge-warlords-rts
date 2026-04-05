@@ -14,6 +14,7 @@ import { MAPS } from '@/lib/rts-engine/maps';
 import { fxController } from '@/lib/rts-engine/fx-controller';
 import { BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
 import { spriteLoader } from '@/lib/rts-engine/sprite-loader';
+import { GameHUD } from '@/components/game-hud/GameHUD';
 import type { GameState, Vec2, BuildingType, UnitType } from '@/lib/rts-engine/types';
 
 type GamePhase = 'menu' | 'loading' | 'playing' | 'paused';
@@ -516,83 +517,63 @@ export function GameCanvas() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // GAME
+  // GAME — Canvas + React HUD overlay (single clean layer)
   // ══════════════════════════════════════════════════════════════════════════════
-  const selectedBld = stateRef.current?.selectedBuildingId ? stateRef.current.buildings.get(stateRef.current.selectedBuildingId) : null;
-  const selectedBldCfg = selectedBld ? BUILDING_CONFIGS[selectedBld.type as keyof typeof BUILDING_CONFIGS] : null;
+  const handleHUDBuild = useCallback((bt: BuildingType) => {
+    setBuildMode(bt);
+    setBuildMenuOpen(false);
+  }, []);
+
+  const handleHUDTrain = useCallback((buildingId: string, unitType: UnitType) => {
+    if (stateRef.current) commandTrain(stateRef.current, buildingId, unitType);
+  }, []);
+
+  const handleHUDSummonHero = useCallback((heroType: UnitType) => {
+    if (stateRef.current) commandSummonHero(stateRef.current, heroType);
+  }, []);
+
+  const handleHUDStop = useCallback(() => {
+    if (stateRef.current) commandStop(stateRef.current);
+  }, []);
+
+  const handleHUDHold = useCallback(() => {
+    if (stateRef.current) commandHold(stateRef.current);
+  }, []);
+
+  const handleHUDAttackMove = useCallback(() => {
+    setAttackMoveMode(true);
+  }, []);
 
   return (
-    <div className="flex flex-col h-full bg-black relative">
-      <div className="flex items-center gap-2 p-1 bg-zinc-900/90 border-b border-zinc-800 z-10 shrink-0">
-        <Button size="sm" variant="ghost" onClick={() => { setPhase('menu'); cancelAnimationFrame(animRef.current); }}><RotateCcw className="h-3.5 w-3.5 mr-1" /> Menu</Button>
-        <Badge variant="secondary" className="text-[10px]">{fps} FPS</Badge>
-        {spriteLoader.isLoading && (
-          <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/40">
-            Loading: {Math.round(spriteLoader.progress * 100)}%
-          </Badge>
-        )}
-        <div className="flex-1" />
-        {buildMode && <Badge variant="default" className="text-xs bg-amber-600">Building: {buildMode} — click to place, ESC cancel</Badge>}
-        {attackMoveMode && <Badge variant="default" className="text-xs bg-red-600">Attack-Move — click target, ESC cancel</Badge>}
-      </div>
-
-      <div ref={containerRef} className="flex-1 relative overflow-hidden" style={{ cursor: buildMode ? 'crosshair' : attackMoveMode ? 'crosshair' : 'default' }}>
+    <div className="h-full bg-black relative">
+      <div ref={containerRef} className="absolute inset-0 overflow-hidden" style={{ cursor: buildMode ? 'crosshair' : attackMoveMode ? 'crosshair' : 'default' }}>
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ imageRendering: 'pixelated' }}
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave} onWheel={handleWheel} onContextMenu={handleContextMenu} />
+      </div>
 
-        {/* Build menu overlay */}
-        {buildMenuOpen && (
-          <div className="absolute bottom-52 right-4 bg-zinc-900/95 border border-zinc-600 rounded-lg p-3 z-20 w-56">
-            <div className="text-xs font-bold text-amber-400 mb-2">BUILD (press key)</div>
-            <div className="grid grid-cols-2 gap-1">
-              {([['B','barracks','⚔️ Barracks'],['H','house','🏠 House'],['T','tower','🗼 Tower'],['A','altar','🪦 Altar'],
-                ['K','blacksmith','⚒️ Smith'],['R','archery','🏹 Archery'],['C','chapel','⛪ Chapel'],['W','workshop','🔧 Workshop'],
-              ] as [string, BuildingType, string][]).map(([key, bt, label]) => (
-                <Button key={bt} size="sm" variant="ghost" onClick={() => { setBuildMode(bt); setBuildMenuOpen(false); }} className="text-[10px] h-7 justify-start px-2">
-                  <span className="text-amber-400 font-bold w-4">{key}</span> {label}
-                </Button>
-              ))}
-            </div>
-            <div className="text-[9px] text-zinc-500 mt-2">ESC to close</div>
-          </div>
-        )}
+      {/* Single React HUD overlay — all UI in one place */}
+      <GameHUD
+        state={stateRef.current}
+        onTrain={handleHUDTrain}
+        onSummonHero={handleHUDSummonHero}
+        onBuild={handleHUDBuild}
+        onStop={handleHUDStop}
+        onHold={handleHUDHold}
+        onAttackMove={handleHUDAttackMove}
+        buildMode={buildMode}
+        attackMoveMode={attackMoveMode}
+        setBuildMode={setBuildMode}
+        buildMenuOpen={buildMenuOpen}
+        setBuildMenuOpen={setBuildMenuOpen}
+      />
 
-        {/* Selected building card */}
-        {selectedBld && selectedBldCfg && (
-          <div className="absolute bottom-2 right-2 bg-zinc-900/95 border border-zinc-600 rounded-lg p-3 z-20 w-64">
-            <div className="text-sm font-bold text-zinc-100 mb-1">{selectedBld.type.charAt(0).toUpperCase() + selectedBld.type.slice(1)} <span className="text-zinc-500 text-[10px]">T{selectedBldCfg.techTier}</span></div>
-            <div className="h-2 bg-zinc-700 rounded mb-2 overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${(selectedBld.hp / selectedBld.maxHp) * 100}%` }} /></div>
-            <div className="text-[10px] text-zinc-400 mb-1">HP: {Math.round(selectedBld.hp)}/{selectedBld.maxHp}</div>
-            {selectedBld.trainingQueue.length > 0 && (
-              <div className="mb-2">
-                <div className="text-[10px] text-zinc-500">Training: {selectedBld.trainingQueue[0]}</div>
-                <div className="h-1.5 bg-zinc-700 rounded overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${selectedBld.trainingProgress * 100}%` }} /></div>
-              </div>
-            )}
-            {selectedBldCfg.trains.length > 0 && (
-              <div className="grid grid-cols-3 gap-1 mt-1">
-                {selectedBldCfg.trains.map(ut => (
-                  <Button key={ut} size="sm" variant="ghost" onClick={() => trainFromSelectedBuilding(ut)} className="text-[10px] h-8 px-1 flex flex-col items-center">
-                    <span className="text-sm">{ut === 'pawn' ? '⛏️' : ut === 'swordsman' ? '⚔️' : ut === 'bowman' ? '🏹' : ut === 'mage' ? '✨' : ut === 'knight' ? '🐴' : ut === 'ballista' ? '💣' : ut === 'orcPawn' ? '⛏️' : '👤'}</span>
-                    <span className="text-[8px] text-zinc-400 truncate w-full text-center">{ut}</span>
-                  </Button>
-                ))}
-              </div>
-            )}
-            {selectedBld.type === 'altar' && (
-              <div className="grid grid-cols-4 gap-1 mt-2">
-                {HERO_CONFIGS.map(h => (
-                  <Button key={h.type} size="sm" variant="ghost" onClick={() => stateRef.current && commandSummonHero(stateRef.current, h.type)}
-                    title={`${h.name} (${h.title})`} className="text-[10px] h-8 px-1 flex flex-col items-center">
-                    <span className="text-sm">{h.type === 'arthax' ? '🗡️' : h.type === 'kanji' ? '🔮' : h.type === 'katan' ? '🏹' : h.type === 'grum' ? '🛡️' : h.type === 'gangblanc' ? '🔪' : h.type === 'okomo' ? '👊' : h.type === 'zhinja' ? '🥷' : '⚔️'}</span>
-                    <span className="text-[8px] text-zinc-400 truncate w-full text-center">{h.name}</span>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      {/* Menu button + FPS (minimal top-right) */}
+      <div className="absolute top-1 right-2 flex items-center gap-2 z-40 pointer-events-auto">
+        <Badge variant="secondary" className="text-[9px] bg-black/60 border-zinc-700">{fps} FPS</Badge>
+        <Button size="sm" variant="ghost" className="h-7 text-[10px] bg-black/60 hover:bg-zinc-800" onClick={() => { setPhase('menu'); cancelAnimationFrame(animRef.current); }}>
+          <RotateCcw className="h-3 w-3 mr-1" /> Menu
+        </Button>
       </div>
     </div>
   );
