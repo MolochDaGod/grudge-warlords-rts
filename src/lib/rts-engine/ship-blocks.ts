@@ -1,5 +1,9 @@
 /**
- * Ship Block Catalog — Modular Spaceship Building Kit
+ * Space Ship Block Catalog — Grudge Space RTS (NOT the WC3 island game)
+ *
+ * These are SPACESHIP blocks for the space fleet/dogfight game mode.
+ * For the WC3-style wooden sailing ships (sloop, galleon, frigate),
+ * see ships.ts which handles the island RTS naval system.
  *
  * 95 OBJ blocks organized into categories:
  *   Structure (70): Cockpits, Fuselage, Wings, Rods, Runways, Habitats

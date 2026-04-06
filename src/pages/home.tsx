@@ -5,7 +5,7 @@ const SECTIONS = [
   { path: '/play', icon: '🎮', title: 'Play Game', desc: 'WC3-style RTS with 80+ units, heroes, naval combat, and 8-node island warfare.', color: 'from-green-600 to-green-800' },
   { path: '/designer', icon: '🎨', title: 'Faction Designer', desc: 'Design tech trees, training links, and unit stats for Kingdom, Legion, and Neutral factions.', color: 'from-amber-600 to-amber-800' },
   { path: '/map-editor', icon: '🗺️', title: 'Map Editor', desc: 'Paint terrain with Tiny Swords tiles, place resources, creep camps, and sea routes.', color: 'from-blue-600 to-blue-800' },
-  { path: '/ship-builder', icon: '🚀', title: 'Ship Builder', desc: 'Assemble modular ships from 95 blocks — cockpits, fuselage, wings, thrusters, cannons, hyperdrives.', color: 'from-cyan-600 to-cyan-800' },
+  { path: '/ship-builder', icon: '🚀', title: 'Space Ship Builder', desc: 'Grudge Space RTS — assemble modular spaceships from 95 blocks. Cockpits, fuselage, wings, thrusters, cannons.', color: 'from-cyan-600 to-cyan-800' },
   { path: '/codex', icon: '📖', title: 'Codex', desc: 'Browse all units, buildings, heroes, items, and ships with animated sprite previews.', color: 'from-purple-600 to-purple-800' },
   { path: '/admin', icon: '⚙️', title: 'Admin Compendium', desc: 'Configure display settings, shadows, VFX, projectile styles for all entities.', color: 'from-red-600 to-red-800' },
 ] as const;

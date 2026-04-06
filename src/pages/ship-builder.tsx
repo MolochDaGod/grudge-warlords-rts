@@ -58,7 +58,8 @@ export default function ShipBuilderPage() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
-        <h2 className="text-sm font-bold text-zinc-100">🚀 SHIP BUILDER</h2>
+        <h2 className="text-sm font-bold text-zinc-100">🚀 SPACE SHIP BUILDER</h2>
+        <Badge variant="outline" className="text-[9px] border-cyan-500/40 text-cyan-400">Grudge Space RTS</Badge>
         <Badge variant="outline" className="text-[10px]">{placed.length} blocks</Badge>
         <div className="flex-1" />
         <div className="flex gap-4 text-[10px]">

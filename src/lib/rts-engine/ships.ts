@@ -1,5 +1,8 @@
 /**
- * Ship & Naval System — Grudge Warlords RTS
+ * Sailing Ship & Naval System — WC3-Style Island RTS
+ *
+ * These are WOODEN SAILING SHIPS for the island warfare game mode.
+ * For modular spaceships (Grudge Space RTS), see ship-blocks.ts.
  *
  * Ships are built at Docks. Each ship requires a Captain (hero unit).
  * Crew capacity depends on ship size: Sloop=6, WarGalleon=10, PirateFrigate=14.
