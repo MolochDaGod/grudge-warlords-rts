@@ -625,17 +625,17 @@ title = "Active visual effect"
           </div>
 
       < div className = "grid grid-cols-3 gap-1 text-[10px]" >
-      <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-red-400" > HP </span> {hero.hp}</div>
-        <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-blue-400" > MP </span> {hero.mana}</div>
-          <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-orange-400" > DMG </span> {hero.damage}</div>
-            <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-cyan-400" > ARM </span> {hero.armor}</div>
-              <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-green-400" > SPD </span> {hero.speed}</div>
-                <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-purple-400" > RNG </span> {hero.range}</div>
-                  </div>
+        <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-red-400" > HP < /span> {hero.hp}</div >
+          <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-blue-400" > MP < /span> {hero.mana}</div >
+            <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-orange-400" > DMG < /span> {hero.damage}</div >
+              <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-cyan-400" > ARM < /span> {hero.armor}</div >
+                <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-green-400" > SPD < /span> {hero.speed}</div >
+                  <div className="bg-zinc-800 p-1 rounded text-center" > <span className="text-purple-400" > RNG < /span> {hero.range}</div >
+                    </div>
 
       < div className = "text-[9px] text-zinc-500 space-y-0.5" >
         <div>+{ hero.hpPerLevel } HP / +{ hero.manaPerLevel } MP per level </div>
-          < div > Summoned at: <span className="text-zinc-300" > { hero.summonedAt } </span> · Revive: <span className="text-yellow-400">{hero.reviveCost}g</span> / {hero.reviveTime}s</div>
+          < div > Summoned at: <span className="text-zinc-300" > { hero.summonedAt } < /span> · Revive: <span className="text-yellow-400">{hero.reviveCost}g</span > / {hero.reviveTime}s</div >
             </div>
 
       < div className = "space-y-2" >
