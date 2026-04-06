@@ -9,6 +9,7 @@ const DesignerPage = lazy(() => import('./pages/designer'));
 const MapEditorPage = lazy(() => import('./pages/map-editor'));
 const AdminPage = lazy(() => import('./pages/admin'));
 const CodexPage = lazy(() => import('./pages/codex'));
+const ShipBuilderPage = lazy(() => import('./pages/ship-builder'));
 
 function Loading() {
   return (
@@ -48,6 +49,11 @@ export default function App() {
         {/* Admin */}
         <Route path="/admin">
           <Layout><AdminPage /></Layout>
+        </Route>
+
+        {/* Ship Builder */}
+        <Route path="/ship-builder">
+          <Layout><ShipBuilderPage /></Layout>
         </Route>
 
         {/* Codex */}

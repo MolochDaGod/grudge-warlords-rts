@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { path: '/play', label: 'Play', icon: '🎮' },
   { path: '/designer', label: 'Designer', icon: '🎨' },
   { path: '/map-editor', label: 'Maps', icon: '🗺️' },
+  { path: '/ship-builder', label: 'Ships', icon: '🚀' },
   { path: '/codex', label: 'Codex', icon: '📖' },
   { path: '/admin', label: 'Admin', icon: '⚙️' },
 ] as const;
