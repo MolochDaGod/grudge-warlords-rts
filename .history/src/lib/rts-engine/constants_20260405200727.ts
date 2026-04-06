@@ -491,27 +491,10 @@ export function getLegionSprites(type: UnitType): Record<string, SpriteConfig> {
 }
 
 /**
- * Unified sprite resolver — all units, all factions.
- * Priority: local Tiny Swords faction-colored sprites → ObjectStore CDN sprites → empty (fallback circle).
+ * Unified sprite resolver — all units, all factions, sourced from ObjectStore CDN.
+ * Falls back to colored circle rendering in the renderer if no sprites found.
  */
-export function getUnitSprites(faction: 'blue' | 'red' | 'neutral', type: UnitType): Record<string, SpriteConfig> {
-  // 1. Try local faction-colored Tiny Swords sprite
-  const tsSpriteKey = _TS_UNIT_MAP[type];
-  if (tsSpriteKey) {
-    const fKey = faction === 'red' ? 'red' : 'blue';
-    const ts = _TS_SPRITES[tsSpriteKey];
-    const paths = ts[fKey];
-    const make = (src: string, frames: number, msPF: number): SpriteConfig =>
-      ({ src, frameW: ts.frameW, frameH: ts.frameH, frames, msPerFrame: msPF });
-    return {
-      idle: make(paths.idle, ts.idleFrames, 160),
-      run: make(paths.run, ts.runFrames, 100),
-      attack: make(paths.attack, ts.attackFrames, 80),
-      interact: make(paths.idle, ts.idleFrames, 120),
-    };
-  }
-
-  // 2. Fall back to ObjectStore CDN sprite map
+export function getUnitSprites(_faction: 'blue' | 'red', type: UnitType): Record<string, SpriteConfig> {
   const mapping = SPRITE_MAP[type];
   if (!mapping) return {};
 

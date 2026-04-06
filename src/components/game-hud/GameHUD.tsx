@@ -16,7 +16,6 @@
 import { memo, useCallback, useMemo } from 'react';
 import type { GameState, Unit, Building, UnitType, BuildingType } from '@/lib/rts-engine/types';
 import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
-import { SHIP_CONFIGS, type ShipType } from '@/lib/rts-engine/ships';
 
 // ── Props ───────────────────────────────────────────────────────────────────────
 interface GameHUDProps {

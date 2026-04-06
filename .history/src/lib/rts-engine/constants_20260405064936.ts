@@ -285,25 +285,27 @@ function bldPath(faction: 'blue' | 'red' | 'neutral', name: string): string {
 
 export function getBuildingSprite(faction: 'blue' | 'red' | 'neutral', type: BuildingType): BuildingSpriteFrame | null {
   const f = faction === 'neutral' ? 'neutral' : faction;
-  // Actual PNG dimensions (measured from image headers):
-  //   Castle.png   = 320×256   Barracks.png = 192×256   Archery.png  = 192×256
-  //   Tower.png    = 128×256   House1/2/3   = 128×192   Monastery    = 192×320
+  // Castle.png = 320×256 (single image)
+  // Barracks.png, Archery.png = ~192×192
+  // Tower.png = ~128×256
+  // House1/2/3.png = ~96×128
+  // Monastery.png = ~192×192
   switch (type) {
-    case 'castle': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
-    case 'keep': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
-    case 'fortress': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 140, displayH: 112 };
-    case 'barracks': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
-    case 'archery': return { sheet: bldPath(f, 'Archery'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
-    case 'chapel': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
-    case 'sanctum': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
-    case 'tower': return { sheet: bldPath(f, 'Tower'), sx: 0, sy: 0, sw: 128, sh: 256, displayW: 64, displayH: 96 };
-    case 'house': return { sheet: bldPath(f, 'House1'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 48, displayH: 64 };
-    case 'market': return { sheet: bldPath(f, 'House2'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
-    case 'tavern': return { sheet: bldPath(f, 'House3'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
-    case 'workshop': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 64 };
-    case 'blacksmith': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 64, displayH: 64 };
-    case 'altar': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
-    case 'docks': return { sheet: bldPath(f, 'Archery'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 64 };
+    case 'castle':   return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
+    case 'keep':     return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
+    case 'fortress': return { sheet: bldPath(f, 'Castle'),     sx: 0, sy: 0, sw: 320, sh: 256, displayW: 140, displayH: 112 };
+    case 'barracks': return { sheet: bldPath(f, 'Barracks'),   sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'archery':  return { sheet: bldPath(f, 'Archery'),    sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'chapel':   return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'sanctum':  return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'tower':    return { sheet: bldPath(f, 'Tower'),      sx: 0, sy: 0, sw: 128, sh: 256, displayW: 64,  displayH: 96 };
+    case 'house':    return { sheet: bldPath(f, 'House1'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 48,  displayH: 64 };
+    case 'market':   return { sheet: bldPath(f, 'House2'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 64,  displayH: 64 };
+    case 'tavern':   return { sheet: bldPath(f, 'House3'),     sx: 0, sy: 0, sw: 128, sh: 128, displayW: 64,  displayH: 64 };
+    case 'workshop': return { sheet: bldPath(f, 'Barracks'),   sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 64 };
+    case 'blacksmith': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 192, displayW: 64,  displayH: 64 };
+    case 'altar':    return { sheet: bldPath(f, 'Monastery'),  sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 96 };
+    case 'docks':    return { sheet: bldPath(f, 'Archery'),    sx: 0, sy: 0, sw: 192, sh: 192, displayW: 96,  displayH: 64 };
     case 'goldmine': return null; // Rendered procedurally
     default: return null;
   }
@@ -315,42 +317,6 @@ export function getBuildingSprite(faction: 'blue' | 'red' | 'neutral', type: Bui
 function cdnSprite(path: string, frames: number, msPerFrame: number, frameW: number, frameH: number): SpriteConfig {
   return { src: `${CDN}${path}`, frameW, frameH, frames, msPerFrame };
 }
-
-// ── Tiny Swords local faction-colored unit sprites ────────────────────────────
-// Served from /public/sprites/tiny-swords/units/{faction}/{type}/
-// Dimensions measured from actual PNG headers (all 192×192 px per frame, 192px tall strips):
-//   warrior: Idle=1536×192 (8f), Run=1152×192 (6f), Attack1=768×192 (4f)
-//   archer:  Idle=1152×192 (6f), Run=768×192  (4f), Shoot=1536×192  (8f)
-//   monk:    Idle=1152×192 (6f), Run=768×192  (4f), Heal=2112×192   (11f)
-
-interface TsUnitPaths { idle: string; run: string; attack: string }
-interface TsUnitMapping { blue: TsUnitPaths; red: TsUnitPaths; frameW: number; frameH: number; idleFrames: number; runFrames: number; attackFrames: number }
-
-function _tsPaths(sprite: 'warrior' | 'archer' | 'monk', faction: 'blue' | 'red'): TsUnitPaths {
-  const b = `/sprites/tiny-swords/units/${faction}/${sprite}`;
-  if (sprite === 'warrior') return { idle: `${b}/Warrior_Idle.png`, run: `${b}/Warrior_Run.png`, attack: `${b}/Warrior_Attack1.png` };
-  if (sprite === 'archer') return { idle: `${b}/Archer_Idle.png`, run: `${b}/Archer_Run.png`, attack: `${b}/Archer_Shoot.png` };
-  /* monk */                return { idle: `${b}/Idle.png`, run: `${b}/Run.png`, attack: `${b}/Heal.png` };
-}
-
-const _TS_SPRITES: Record<'warrior' | 'archer' | 'monk', TsUnitMapping> = {
-  warrior: { blue: _tsPaths('warrior', 'blue'), red: _tsPaths('warrior', 'red'), frameW: 192, frameH: 192, idleFrames: 8, runFrames: 6, attackFrames: 4 },
-  archer: { blue: _tsPaths('archer', 'blue'), red: _tsPaths('archer', 'red'), frameW: 192, frameH: 192, idleFrames: 6, runFrames: 4, attackFrames: 8 },
-  monk: { blue: _tsPaths('monk', 'blue'), red: _tsPaths('monk', 'red'), frameW: 192, frameH: 192, idleFrames: 6, runFrames: 4, attackFrames: 11 },
-};
-
-/** Maps unit configKey → which tiny-swords local sprite type to use */
-const _TS_UNIT_MAP: Partial<Record<string, 'warrior' | 'archer' | 'monk'>> = {
-  // Kingdom workers & melee
-  pawn: 'warrior', farmer: 'monk',
-  swordsman: 'warrior', axeman: 'warrior', knight: 'warrior', assasin: 'warrior',
-  bowman: 'archer', musketeer: 'archer',
-  mage: 'monk',
-  // Legion workers & melee
-  orcPawn: 'warrior', orcWarrior: 'warrior', orcSpearman: 'warrior',
-  orcArcher: 'archer',
-  orcHealer: 'monk', orcMage: 'monk',
-};
 
 /**
  * Sprite path mapping — every unit type mapped to ObjectStore CDN with CORRECT
@@ -491,27 +457,10 @@ export function getLegionSprites(type: UnitType): Record<string, SpriteConfig> {
 }
 
 /**
- * Unified sprite resolver — all units, all factions.
- * Priority: local Tiny Swords faction-colored sprites → ObjectStore CDN sprites → empty (fallback circle).
+ * Unified sprite resolver — all units, all factions, sourced from ObjectStore CDN.
+ * Falls back to colored circle rendering in the renderer if no sprites found.
  */
-export function getUnitSprites(faction: 'blue' | 'red' | 'neutral', type: UnitType): Record<string, SpriteConfig> {
-  // 1. Try local faction-colored Tiny Swords sprite
-  const tsSpriteKey = _TS_UNIT_MAP[type];
-  if (tsSpriteKey) {
-    const fKey = faction === 'red' ? 'red' : 'blue';
-    const ts = _TS_SPRITES[tsSpriteKey];
-    const paths = ts[fKey];
-    const make = (src: string, frames: number, msPF: number): SpriteConfig =>
-      ({ src, frameW: ts.frameW, frameH: ts.frameH, frames, msPerFrame: msPF });
-    return {
-      idle: make(paths.idle, ts.idleFrames, 160),
-      run: make(paths.run, ts.runFrames, 100),
-      attack: make(paths.attack, ts.attackFrames, 80),
-      interact: make(paths.idle, ts.idleFrames, 120),
-    };
-  }
-
-  // 2. Fall back to ObjectStore CDN sprite map
+export function getUnitSprites(_faction: 'blue' | 'red', type: UnitType): Record<string, SpriteConfig> {
   const mapping = SPRITE_MAP[type];
   if (!mapping) return {};
 

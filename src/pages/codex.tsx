@@ -7,7 +7,7 @@ import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ABILITY_DEFS, ITEM_DEFS, 
 import { SHIP_CONFIGS, type ShipType } from '@/lib/rts-engine/ships';
 import type { BuildingType, ItemRarity } from '@/lib/rts-engine/types';
 
-type CodexTab = 'units' | 'buildings' | 'heroes' | 'items' | 'ships' | 'upgrades';
+type CodexTab = 'units' | 'buildings' | 'heroes' | 'items' | 'sailing_ships' | 'upgrades';
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
   common: '#9ca3af', uncommon: '#22c55e', rare: '#3b82f6', epic: '#a855f7', legendary: '#f59e0b',
@@ -28,7 +28,7 @@ export default function CodexPage() {
   const allBuildings = (Object.entries(BUILDING_CONFIGS) as [BuildingType, typeof BUILDING_CONFIGS[BuildingType]][]).filter(([k]) => k.toLowerCase().includes(lowerSearch));
   const allHeroes = HERO_CONFIGS.filter(h => h.name.toLowerCase().includes(lowerSearch) || h.type.toLowerCase().includes(lowerSearch));
   const allItems = Object.entries(ITEM_DEFS).filter(([k, v]) => k.toLowerCase().includes(lowerSearch) || v.name.toLowerCase().includes(lowerSearch));
-  const allShips = (Object.entries(SHIP_CONFIGS) as [ShipType, typeof SHIP_CONFIGS[ShipType]][]).filter(([k]) => k.toLowerCase().includes(lowerSearch));
+  const allSailingShips = (Object.entries(SHIP_CONFIGS) as [ShipType, typeof SHIP_CONFIGS[ShipType]][]).filter(([k]) => k.toLowerCase().includes(lowerSearch));
   const allUpgrades = Object.entries(UPGRADE_DEFS).filter(([k, v]) => k.toLowerCase().includes(lowerSearch) || v.name.toLowerCase().includes(lowerSearch));
 
   const tabs: { key: CodexTab; label: string; count: number }[] = [
@@ -36,7 +36,7 @@ export default function CodexPage() {
     { key: 'buildings', label: 'Buildings', count: allBuildings.length },
     { key: 'heroes', label: 'Heroes', count: allHeroes.length },
     { key: 'items', label: 'Items', count: allItems.length },
-    { key: 'ships', label: 'Ships', count: allShips.length },
+    { key: 'sailing_ships', label: 'Sailing Ships', count: allSailingShips.length },
     { key: 'upgrades', label: 'Upgrades', count: allUpgrades.length },
   ];
 
@@ -114,11 +114,11 @@ export default function CodexPage() {
               </Card>
             ))}
 
-            {tab === 'ships' && allShips.map(([key, cfg]) => (
+            {tab === 'sailing_ships' && allSailingShips.map(([key, cfg]) => (
               <Card key={key} className={`cursor-pointer ${selectedKey === key ? 'border-amber-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-900 hover:border-zinc-500'}`}
                 onClick={() => setSelectedKey(key)}>
                 <CardContent className="p-2 text-center">
-                  <div className="text-lg">🚢</div>
+                  <div className="text-lg">⛵</div>
                   <div className="text-xs font-bold text-zinc-200 truncate">{key}</div>
                   <div className="text-[8px] text-zinc-500">Crew:{cfg.crewCapacity} · T{cfg.requiredTier}</div>
                   <div className="text-[8px] text-zinc-600">HP:{cfg.hp} Cannons:{cfg.cannonCount}</div>
@@ -203,7 +203,7 @@ export default function CodexPage() {
             );
           })()}
 
-          {selectedKey && tab === 'ships' && SHIP_CONFIGS[selectedKey as ShipType] && (() => {
+          {selectedKey && tab === 'sailing_ships' && SHIP_CONFIGS[selectedKey as ShipType] && (() => {
             const cfg = SHIP_CONFIGS[selectedKey as ShipType];
             return (
               <div className="space-y-3">

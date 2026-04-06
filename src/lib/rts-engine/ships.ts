@@ -45,7 +45,8 @@ export interface ShipConfig {
   spriteH: number;
 }
 
-const CDN = 'https://molochdagod.github.io/ObjectStore';
+// Sailing ships are rendered procedurally by renderer.ts drawShip().
+// No CDN sprite images — spriteW/spriteH control the procedural hull size.
 
 export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
   fishingBoat: {
@@ -53,7 +54,7 @@ export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
     cannonDamage: 0, cannonRange: 0, cannonCooldown: 0, cannonCount: 0,
     crewCapacity: 2,
     cost: { gold: 100, wood: 80 }, buildTime: 15, requiredTier: 1,
-    sprite: `${CDN}/sprites/miniworld/Ships/Boat.png`,
+    sprite: '', // Procedural rendering
     spriteW: 32, spriteH: 32,
   },
   sloop: {
@@ -61,7 +62,7 @@ export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
     cannonDamage: 25, cannonRange: 200, cannonCooldown: 2.5, cannonCount: 2,
     crewCapacity: 6,
     cost: { gold: 250, wood: 200 }, buildTime: 25, requiredTier: 1,
-    sprite: `${CDN}/sprites/miniworld/Ships/Ship_Small.png`,
+    sprite: '', // Procedural rendering
     spriteW: 48, spriteH: 48,
   },
   transportShip: {
@@ -69,7 +70,7 @@ export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
     cannonDamage: 0, cannonRange: 0, cannonCooldown: 0, cannonCount: 0,
     crewCapacity: 10,
     cost: { gold: 300, wood: 250 }, buildTime: 35, requiredTier: 2,
-    sprite: `${CDN}/sprites/miniworld/Ships/Ship_Medium.png`,
+    sprite: '', // Procedural rendering
     spriteW: 64, spriteH: 64,
   },
   warGalleon: {
@@ -77,7 +78,7 @@ export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
     cannonDamage: 50, cannonRange: 280, cannonCooldown: 3.5, cannonCount: 6,
     crewCapacity: 10,
     cost: { gold: 500, wood: 400 }, buildTime: 50, requiredTier: 2,
-    sprite: `${CDN}/sprites/miniworld/Ships/Ship_Large.png`,
+    sprite: '', // Procedural rendering
     spriteW: 80, spriteH: 80,
   },
   pirateFrigate: {
@@ -85,7 +86,7 @@ export const SHIP_CONFIGS: Record<ShipType, ShipConfig> = {
     cannonDamage: 75, cannonRange: 320, cannonCooldown: 4.0, cannonCount: 10,
     crewCapacity: 14,
     cost: { gold: 800, wood: 600 }, buildTime: 70, requiredTier: 3,
-    sprite: `${CDN}/sprites/miniworld/Ships/Ship_Pirates.png`,
+    sprite: '', // Procedural rendering
     spriteW: 96, spriteH: 96,
   },
 };
