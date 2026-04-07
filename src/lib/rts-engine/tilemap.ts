@@ -46,17 +46,20 @@ export type TileValue = number; // 0-24
 // These are served by Vite from public/sprites/tiny-swords/
 export const TILESETS = {
   /** 576×384 (3×2 grid of 192×192 tiles) — contains flat ground + elevated cliff tiles */
-  terrain1:     '/sprites/tiny-swords/terrain/Tilemap_color1.png',
-  terrain2:     '/sprites/tiny-swords/terrain/Tilemap_color2.png',
-  terrain3:     '/sprites/tiny-swords/terrain/Tilemap_color3.png',
-  terrain4:     '/sprites/tiny-swords/terrain/Tilemap_color4.png',
-  terrain5:     '/sprites/tiny-swords/terrain/Tilemap_color5.png',
+  terrain1: '/sprites/tiny-swords/terrain/Tilemap_color1.png',
+  terrain2: '/sprites/tiny-swords/terrain/Tilemap_color2.png',
+  terrain3: '/sprites/tiny-swords/terrain/Tilemap_color3.png',
+  terrain4: '/sprites/tiny-swords/terrain/Tilemap_color4.png',
+  terrain5: '/sprites/tiny-swords/terrain/Tilemap_color5.png',
+  /** Aliases used by renderer — same PNG contains both flat and elevated sections */
+  flatGround: '/sprites/tiny-swords/terrain/Tilemap_color1.png',
+  elevatedGround: '/sprites/tiny-swords/terrain/Tilemap_color1.png',
   /** 3072×192 (16 frames of 192×192 animated foam) */
-  waterFoam:    '/sprites/tiny-swords/terrain/Water Foam.png',
+  waterFoam: '/sprites/tiny-swords/terrain/Water Foam.png',
   /** 192×192 single shadow sprite */
-  shadow:       '/sprites/tiny-swords/terrain/Shadow.png',
+  shadow: '/sprites/tiny-swords/terrain/Shadow.png',
   /** Water background solid color reference */
-  waterBg:      '/sprites/tiny-swords/terrain/Water Background color.png',
+  waterBg: '/sprites/tiny-swords/terrain/Water Background color.png',
 };
 
 // ── Tilemap data structure ──────────────────────────────────────────────────────

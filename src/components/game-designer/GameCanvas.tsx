@@ -35,6 +35,7 @@ export function GameCanvas() {
   const lastClickRef = useRef({ time: 0, unitType: '' });
 
   const [phase, setPhase] = useState<GamePhase>('menu');
+  const [gameResult, setGameResult] = useState<'playing' | 'won' | 'lost'>('playing');
   const [selectedMap, setSelectedMap] = useState(0);
   const [selectedFaction, setSelectedFaction] = useState<'kingdom' | 'legion'>('kingdom');
   const [buildMode, setBuildMode] = useState<BuildingType | null>(null);
@@ -123,6 +124,9 @@ export function GameCanvas() {
         fxController.update(dt);
         renderGame(ctx, stateRef.current, w, h, dt);
         fxController.renderParticles(ctx, stateRef.current.camera.x, stateRef.current.camera.y, stateRef.current.zoom);
+        // Detect win / loss and surface to React
+        const gs = stateRef.current.gameStatus;
+        if (gs === 'won' || gs === 'lost') setGameResult(gs);
       }
       fpsCounter++;
       fpsTimer += dt;
@@ -305,7 +309,7 @@ export function GameCanvas() {
       // Build menu sub-keys
       if (buildMenuOpen) {
         e.preventDefault();
-        const map: Record<string, BuildingType> = { b:'barracks', h:'house', t:'tower', a:'altar', k:'blacksmith', r:'archery', c:'chapel', w:'workshop' };
+        const map: Record<string, BuildingType> = { b: 'barracks', h: 'house', t: 'tower', a: 'altar', k: 'blacksmith', r: 'archery', c: 'chapel', w: 'workshop', d: 'docks' };
         const bt = map[e.key.toLowerCase()];
         if (bt) { setBuildMode(bt); setBuildMenuOpen(false); }
         if (e.key === 'Escape') setBuildMenuOpen(false);
@@ -390,11 +394,6 @@ export function GameCanvas() {
   }, [phase, buildMenuOpen]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => e.preventDefault(), []);
-
-  const trainFromSelectedBuilding = (type: UnitType) => {
-    if (!stateRef.current || !stateRef.current.selectedBuildingId) return;
-    commandTrain(stateRef.current, stateRef.current.selectedBuildingId, type);
-  };
 
   // ══════════════════════════════════════════════════════════════════════════════
   // MENU
@@ -568,10 +567,40 @@ export function GameCanvas() {
         setBuildMenuOpen={setBuildMenuOpen}
       />
 
-      {/* Menu button + FPS (minimal top-right) */}
+  { gameResult === 'won' && (
+    <div className="absolute inset-0 bg-black/75 z-50 flex items-center justify-center pointer-events-auto" >
+      <div className="text-center" >
+        <div className="text-7xl mb-4" >🏆</div>
+          < h2 className = "text-5xl font-black text-amber-400 mb-3" > VICTORY! </h2>
+            < p className = "text-zinc-300 text-lg mb-8" > Your castle stands supreme.</p>
+              < Button size = "lg" className = "bg-amber-600 hover:bg-amber-500 text-white px-10 font-bold"
+onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }}>
+  Return to Menu
+    </Button>
+    </div>
+    </div>
+      )}
+{
+  gameResult === 'lost' && (
+    <div className="absolute inset-0 bg-black/85 z-50 flex items-center justify-center pointer-events-auto" >
+      <div className="text-center" >
+        <div className="text-7xl mb-4" >💀</div>
+          < h2 className = "text-5xl font-black text-red-500 mb-3" > DEFEATED </h2>
+            < p className = "text-zinc-300 text-lg mb-8" > Your castle has fallen.</p>
+              < Button size = "lg" className = "bg-red-700 hover:bg-red-600 text-white px-10 font-bold"
+  onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }
+}>
+  Return to Menu
+    </Button>
+    </div>
+    </div>
+      )}
+
+{/* Menu button + FPS */ }
       <div className="absolute top-1 right-2 flex items-center gap-2 z-40 pointer-events-auto">
         <Badge variant="secondary" className="text-[9px] bg-black/60 border-zinc-700">{fps} FPS</Badge>
-        <Button size="sm" variant="ghost" className="h-7 text-[10px] bg-black/60 hover:bg-zinc-800" onClick={() => { setPhase('menu'); cancelAnimationFrame(animRef.current); }}>
+  < Button size = "sm" variant = "ghost" className = "h-7 text-[10px] bg-black/60 hover:bg-zinc-800"
+onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }}>
           <RotateCcw className="h-3 w-3 mr-1" /> Menu
         </Button>
       </div>

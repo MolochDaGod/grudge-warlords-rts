@@ -13,7 +13,7 @@
  *   6. Minimap: Bottom-right corner
  */
 
-import { memo, useCallback, useMemo } from 'react';
+import { memo } from 'react';
 import type { GameState, Unit, Building, UnitType, BuildingType } from '@/lib/rts-engine/types';
 import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
 
@@ -215,63 +215,55 @@ const SelectionPanel = memo(({ state, onTrain, onSummonHero }: {
                 </div>
               </div>
             )}
-{/* Train buttons (faction-filtered) */ }
-{
-  (() => {
-    const fFilter = state.playerFaction === 'kingdom' ? KINGDOM_TRAINS : LEGION_TRAINS;
-    const trainable = cfg.trains.filter(t => fFilter.has(t));
-    if (trainable.length === 0) return null;
-    return (
-      <div className= "mt-1" >
-      <div className="text-[9px] text-zinc-500 mb-1" > TRAIN </div>
-        < div className = "flex flex-wrap gap-1" >
-        {
-          trainable.map(ut => {
-            const ucfg = UNIT_CONFIGS[ut]; if (!ucfg) return null;
-            const canAfford = state.playerResources.gold >= ucfg.trainCost.gold && state.playerResources.wood >= ucfg.trainCost.wood;
-            const queueFull = selectedBld.trainingQueue.length >= 5;
-            return (
-              <button key= { ut } onClick = {() => canAfford && !queueFull && onTrain(selectedBld.id, ut as UnitType)
-          }
-                          className = {`px-2 py-1 rounded text-[9px] font-bold transition-all ${canAfford && !queueFull ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-zinc-900/50 text-zinc-600 cursor-not-allowed'}`} >
-          <div>{ UNIT_ICONS[ut] ?? '⚔️' } { ut } </div>
-            < div className = "text-[8px] text-amber-400" >🪙{ ucfg.trainCost.gold } { ucfg.trainCost.wood > 0 ? ` 🪵${ucfg.trainCost.wood}` : '' } </div>
-              </button>
+            {/* Train buttons (faction-filtered) */}
+            {(() => {
+              const fFilter = state.playerFaction === 'kingdom' ? KINGDOM_TRAINS : LEGION_TRAINS;
+              const trainable = cfg.trains.filter(t => fFilter.has(t));
+              if (trainable.length === 0) return null;
+              return (
+                <div className="mt-1">
+                  <div className="text-[9px] text-zinc-500 mb-1">TRAIN</div>
+                  <div className="flex flex-wrap gap-1">
+                    {trainable.map(ut => {
+                      const ucfg = UNIT_CONFIGS[ut]; if (!ucfg) return null;
+                      const canAfford = state.playerResources.gold >= ucfg.trainCost.gold && state.playerResources.wood >= ucfg.trainCost.wood;
+                      const queueFull = selectedBld.trainingQueue.length >= 5;
+                      return (
+                        <button key={ut} onClick={() => canAfford && !queueFull && onTrain(selectedBld.id, ut as UnitType)}
+                          className={`px-2 py-1 rounded text-[9px] font-bold transition-all ${canAfford && !queueFull ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-zinc-900/50 text-zinc-600 cursor-not-allowed'}`}>
+                          <div>{UNIT_ICONS[ut] ?? '⚔️'} {ut}</div>
+                          <div className="text-[8px] text-amber-400">🪙{ucfg.trainCost.gold}{ucfg.trainCost.wood > 0 ? ` 🪵${ucfg.trainCost.wood}` : ''}</div>
+                        </button>
                       );
-  })
-}
-</div>
-  </div>
+                    })}
+                  </div>
+                </div>
               );
-            }) ()}
-{/* Hero summon (altar only) */ }
-{
-  selectedBld.type === 'altar' && (() => {
-    const aliveHeroes = [...state.units.values()].filter(u => u.faction === 'blue' && u.isHero && u.state !== 'dead');
-    const heroPool = state.playerFaction === 'kingdom' ? KINGDOM_HEROES : LEGION_HEROES;
-    return (
-      <div className= "mt-2" >
-      <div className="text-[9px] text-zinc-500 mb-1" > SUMMON HERO({ aliveHeroes.length } / 3) </div>
-    {
-      heroPool.map(ht => {
-        const hc = HERO_CONFIGS.find(h => h.type === ht); if (!hc) return null;
-        const alive = aliveHeroes.some(u => u.type === ht);
-        const full = !alive && aliveHeroes.length >= 3;
-        return (
-          <button key= { ht } onClick = {() => !alive && !full && onSummonHero(ht as UnitType)
-      }
-                        className = {`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] w-full mb-0.5 transition-all ${alive || full ? 'bg-zinc-900 text-zinc-600 cursor-default' : 'bg-purple-900/40 hover:bg-purple-800/50 text-purple-200 cursor-pointer'}`}>
-      <span>{ HERO_ICONS[ht] ?? '👑' } </span>
-      < span className = "font-bold" > { hc.name } </span>
-        < span className = "text-zinc-500 text-[8px]" >— { hc.title } </span>
-    { alive && <span className="ml-auto text-green-400 text-[8px] font-bold" > ALIVE </span> }
-    </button>
+            })()}
+            {/* Hero summon (altar only) */}
+            {selectedBld.type === 'altar' && (() => {
+              const aliveHeroes = [...state.units.values()].filter(u => u.faction === 'blue' && u.isHero && u.state !== 'dead');
+              const heroPool = state.playerFaction === 'kingdom' ? KINGDOM_HEROES : LEGION_HEROES;
+              return (
+                <div className="mt-2">
+                  <div className="text-[9px] text-zinc-500 mb-1">SUMMON HERO ({aliveHeroes.length}/3)</div>
+                  {heroPool.map(ht => {
+                    const hc = HERO_CONFIGS.find(h => h.type === ht); if (!hc) return null;
+                    const alive = aliveHeroes.some(u => u.type === ht);
+                    const full = !alive && aliveHeroes.length >= 3;
+                    return (
+                      <button key={ht} onClick={() => !alive && !full && onSummonHero(ht as UnitType)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] w-full mb-0.5 transition-all ${alive || full ? 'bg-zinc-900 text-zinc-600 cursor-default' : 'bg-purple-900/40 hover:bg-purple-800/50 text-purple-200 cursor-pointer'}`}>
+                        <span>{HERO_ICONS[ht] ?? '👑'}</span>
+                        <span className="font-bold">{hc.name}</span>
+                        <span className="text-zinc-500 text-[8px]">— {hc.title}</span>
+                        {alive && <span className="ml-auto text-green-400 text-[8px] font-bold">ALIVE</span>}
+                      </button>
                     );
-  })
-}
-</div>
+                  })}
+                </div>
               );
-            }) ()}
+            })()}
           </div>
         );
       })()}
@@ -336,7 +328,7 @@ export function GameHUD({
     <div className="absolute inset-0 pointer-events-none text-white z-20">
       <ResourceBar state={state} />
       <HeroPortraits state={state} />
-    <SelectionPanel state={ state } onTrain = { onTrain } onSummonHero = { onSummonHero } />
+      <SelectionPanel state={state} onTrain={onTrain} onSummonHero={onSummonHero} />
       <ActionBar onStop={onStop} onHold={onHold} onAttackMove={onAttackMove} />
       <BuildMenu open={buildMenuOpen} onBuild={onBuild} onClose={() => setBuildMenuOpen(false)} />
 
