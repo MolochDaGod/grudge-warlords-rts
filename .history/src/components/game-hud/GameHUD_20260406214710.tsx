@@ -29,10 +29,6 @@ const KINGDOM_TRAINS = new Set(['pawn', 'farmer', 'swordsman', 'spearman', 'axem
 const LEGION_TRAINS = new Set(['orcPawn', 'orcWarrior', 'orcSpearman', 'orcArcher', 'orcHealer', 'orcMage', 'demon', 'mammoth']);
 const KINGDOM_HEROES = ['arthax', 'kanji', 'katan'];
 const LEGION_HEROES = ['grum', 'gangblanc', 'okomo', 'zhinja', 'borg'];
-const HERO_ICONS: Record<string, string> = {
-  arthax: '🗡️', kanji: '🔮', katan: '🏹', grum: '🛡️',
-  gangblanc: '🔪', okomo: '👊', zhinja: '🥷', borg: '⚔️',
-};
 
 // ── Props ───────────────────────────────────────────────────────────────────────
 interface GameHUDProps {
@@ -89,6 +85,11 @@ const HeroPortraits = memo(({ state }: { state: GameState }) => {
     if (u.faction === 'blue' && u.isHero && u.state !== 'dead') heroes.push(u);
   }
   if (heroes.length === 0) return null;
+
+  const HERO_ICONS: Record<string, string> = {
+    arthax: '🗡️', kanji: '🔮', katan: '🏹', grum: '🛡️',
+    gangblanc: '🔪', okomo: '👊', zhinja: '🥷', borg: '⚔️',
+  };
 
   return (
     <div className="absolute top-11 left-4 flex gap-1 z-30 pointer-events-auto">
