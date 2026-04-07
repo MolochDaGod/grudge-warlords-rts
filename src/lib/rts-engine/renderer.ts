@@ -1,6 +1,4 @@
 import type { GameState, Unit, Building, Resource, Island, Projectile, VfxEffect } from './types';
-import type { Ship } from './ships';
-import { SHIP_CONFIGS } from './ships';
 import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, getUnitSprites, getLegionSprites, getBuildingSprite, DAY_DURATION, CYCLE_LENGTH } from './constants';
 import { VFX_CONFIGS } from './vfx';
 import { getUnitDisplay, getBuildingDisplay } from './unit-defaults';
@@ -33,15 +31,15 @@ const CLIFF_SHADOW = 'rgba(0,0,0,0.2)';
 const GOLD_MINE_COLOR = '#fbbf24';
 const CDN = 'https://molochdagod.github.io/ObjectStore';
 
-// ── Tiny Swords decoration sprites (local assets) ───────────────────────────
+// ── Miniworld Terrain Tile CDN paths ────────────────────────────────────────────
 const TERRAIN = {
-  tree1: '/sprites/tiny-swords/decorations/trees/Tree1.png',
-  tree2: '/sprites/tiny-swords/decorations/trees/Tree2.png',
-  tree3: '/sprites/tiny-swords/decorations/trees/Tree3.png',
-  tree4: '/sprites/tiny-swords/decorations/trees/Tree4.png',
-  bush1: '/sprites/tiny-swords/decorations/bushes/Bushe1.png',
-  rock1: '/sprites/tiny-swords/decorations/rocks/Rock1.png',
-  sheep: '/sprites/tiny-swords/decorations/sheep/Sheep_Idle.png',
+  tree1: `${CDN}/sprites/miniworld/Decorations/Trees1.png`,       // pine trees
+  tree2: `${CDN}/sprites/miniworld/Decorations/Trees2.png`,       // autumn/leafy trees
+  bush: `${CDN}/sprites/miniworld/Decorations/Bushes.png`,
+  rock: `${CDN}/sprites/miniworld/Decorations/Rocks.png`,
+  flower: `${CDN}/sprites/miniworld/Decorations/Flowers.png`,
+  fence: `${CDN}/sprites/miniworld/Decorations/WoodFence.png`,
+  sheep: `${CDN}/sprites/miniworld/Animals/Sheep.png`,
 };
 
 // ── Sprite rendering helper ────────────────────────────────────────────────────
@@ -134,12 +132,6 @@ export function renderGame(
     renderables.push({ y: unit.pos.y + 32, draw: () => drawUnit(ctx, unit, state) });
   }
 
-  // Ships
-  for (const [, ship] of state.ships) {
-    if (ship.state === 'destroyed') continue;
-    renderables.push({ y: ship.pos.y + 20, draw: () => drawShip(ctx, ship) });
-  }
-
   renderables.sort((a, b) => a.y - b.y);
   for (const r of renderables) r.draw();
 
@@ -211,113 +203,11 @@ export function renderGame(
     ctx.fillRect(0, 0, canvasW, canvasH);
   }
 
-  // HUD is now rendered as a React overlay (GameHUD component)
-  // Canvas only draws the game world — no duplicate UI
+  // ── Minimap (canvas-drawn; HUD is handled by React GameHUD overlay) ──────
+  drawMinimap(ctx, state, canvasW, canvasH);
 }
 
-// ── Ship renderer (procedural — no CDN sprite) ───────────────────────────────
-function drawShip(ctx: CanvasRenderingContext2D, ship: Ship) {
-  const cfg = SHIP_CONFIGS[ship.type];
-  const fColor = FACTION_COLORS[ship.faction] || '#888';
-  const hw = cfg.spriteW * 0.4; // half width
-  const hh = cfg.spriteH * 0.4; // half height
-
-  ctx.save();
-  ctx.translate(ship.pos.x, ship.pos.y);
-  ctx.rotate(ship.heading);
-
-  // Sinking effect: scale down + fade
-  if (ship.state === 'sinking') {
-    const sinkPct = ship.sinkTimer / 3;
-    ctx.globalAlpha = 1 - sinkPct;
-    ctx.scale(1 - sinkPct * 0.3, 1 - sinkPct * 0.3);
-  }
-
-  // Hull shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.beginPath();
-  ctx.ellipse(2, 3, hw * 0.85, hh * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Hull body
-  ctx.fillStyle = '#5b3a1a'; // dark wood
-  ctx.beginPath();
-  ctx.moveTo(hw, 0);                // bow (front)
-  ctx.quadraticCurveTo(hw * 0.6, -hh, -hw * 0.3, -hh * 0.8); // top curve
-  ctx.lineTo(-hw, -hh * 0.3);       // stern top
-  ctx.lineTo(-hw, hh * 0.3);        // stern bottom
-  ctx.lineTo(-hw * 0.3, hh * 0.8);  // bottom curve start
-  ctx.quadraticCurveTo(hw * 0.6, hh, hw, 0); // bottom curve to bow
-  ctx.fill();
-
-  // Hull highlight
-  ctx.fillStyle = '#8b6914';
-  ctx.beginPath();
-  ctx.moveTo(hw * 0.8, 0);
-  ctx.quadraticCurveTo(hw * 0.4, -hh * 0.6, -hw * 0.2, -hh * 0.5);
-  ctx.lineTo(-hw * 0.2, hh * 0.5);
-  ctx.quadraticCurveTo(hw * 0.4, hh * 0.6, hw * 0.8, 0);
-  ctx.fill();
-
-  // Faction stripe
-  ctx.fillStyle = fColor;
-  ctx.fillRect(-hw * 0.6, -2, hw * 1.2, 4);
-
-  // Cannon dots (along sides)
-  if (cfg.cannonCount > 0) {
-    ctx.fillStyle = '#333';
-    const spacing = (hw * 1.4) / (cfg.cannonCount / 2 + 1);
-    for (let i = 0; i < cfg.cannonCount / 2; i++) {
-      const cx = -hw * 0.5 + spacing * (i + 1);
-      ctx.beginPath(); ctx.arc(cx, -hh * 0.5, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx, hh * 0.5, 2, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-
-  // Mast + sail (for medium+ ships)
-  if (hw > 15) {
-    ctx.fillStyle = '#3a2510';
-    ctx.fillRect(-1, -hh * 0.3, 2, hh * 0.6);
-    // Sail
-    ctx.fillStyle = fColor;
-    ctx.globalAlpha = (ctx.globalAlpha ?? 1) * 0.7;
-    ctx.beginPath();
-    ctx.moveTo(0, -hh * 0.3);
-    ctx.quadraticCurveTo(hw * 0.4, 0, 0, hh * 0.2);
-    ctx.lineTo(0, -hh * 0.3);
-    ctx.fill();
-    ctx.globalAlpha = ship.state === 'sinking' ? 1 - ship.sinkTimer / 3 : 1;
-  }
-
-  ctx.restore();
-
-  // Selection ring
-  if (ship.selected) {
-    ctx.strokeStyle = '#22c55e';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(ship.pos.x, ship.pos.y, hw + 4, hh + 4, ship.heading, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  // HP bar
-  const barW = hw * 2;
-  const hpPct = ship.hp / ship.maxHp;
-  ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
-  ctx.fillRect(ship.pos.x - barW / 2, ship.pos.y - hh - 10, barW * hpPct, 3);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 0.5;
-  ctx.strokeRect(ship.pos.x - barW / 2, ship.pos.y - hh - 10, barW, 3);
-
-  // Crew count label
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '8px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`⚓${ship.crew.length}/${cfg.crewCapacity}`, ship.pos.x, ship.pos.y + hh + 10);
-  ctx.textAlign = 'left';
-}
-
-// ── Tilemap terrain renderer ────────────────────────────────────────────────
+// ── Tilemap terrain renderer ────────────────────────────────────────────────────
 /**
  * Render a single tilemap layer using actual tileset sprite images.
  * Falls back silently (tiles just won't draw) if the image isn't loaded yet.
@@ -365,40 +255,38 @@ function drawTilemapLayer(
  * Returns true if tileset images were loaded and rendering succeeded.
  */
 function drawTilemapTerrain(ctx: CanvasRenderingContext2D, map: TilemapData): boolean {
-  // Use terrain1 (color variant 1) as the primary tileset
-  const flatImg = spriteLoader.get(TILESETS.terrain1, PRIORITY.AMBIENT);
+  const flatImg = spriteLoader.get(TILESETS.flatGround, PRIORITY.AMBIENT);
+  const elevImg = spriteLoader.get(TILESETS.elevatedGround, PRIORITY.AMBIENT);
   const foamImg = spriteLoader.get(TILESETS.waterFoam, PRIORITY.AMBIENT);
   const shadowImg = spriteLoader.get(TILESETS.shadow, PRIORITY.AMBIENT);
 
-  // If the primary tile image isn't loaded yet, signal caller to use procedural fallback
-  if (!flatImg) return false;
+  // If the primary tile images aren't loaded yet, signal caller to use procedural fallback
+  if (!flatImg || !elevImg) return false;
 
   // Layer order: foam → flat ground → shadows → elevated tiers
-  // Foam: 3072×192 strip = 16 frames of 192×192
   if (foamImg) {
-    drawTilemapLayer(ctx, map, LAYER_FOAM, TILESETS.waterFoam, () => ({ sx: 0, sy: 0, sw: 192, sh: 192 }), 1, 2);
+    drawTilemapLayer(ctx, map, LAYER_FOAM, TILESETS.waterFoam, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 1, 2);
   }
 
-  // Flat ground + elevated both use terrain1 (576×384 = 3×2 grid of 192×192)
-  drawTilemapLayer(ctx, map, LAYER_FLAT, TILESETS.terrain1, getFlatTileRect);
+  drawTilemapLayer(ctx, map, LAYER_FLAT, TILESETS.flatGround, getFlatTileRect);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_0, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 192, sh: 192 }), 0.65, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_0, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.65, 2);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_1, TILESETS.terrain1, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_1, TILESETS.elevatedGround, getElevatedTileRect);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_1, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 192, sh: 192 }), 0.55, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_1, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.55, 2);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_2, TILESETS.terrain1, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_2, TILESETS.elevatedGround, getElevatedTileRect);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_2, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 192, sh: 192 }), 0.45, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_2, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.45, 2);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_3, TILESETS.terrain1, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_3, TILESETS.elevatedGround, getElevatedTileRect);
 
   return true;
 }
@@ -684,9 +572,8 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
     ctx.fill();
   }
 
-  // Try sprite rendering
-  const faction = unit.faction === 'blue' ? 'blue' : 'red';
-  const sprites = getUnitSprites(faction as 'blue' | 'red', unit.type);
+  // Try sprite rendering — pass actual faction so local TS sprites use correct color
+  const sprites = getUnitSprites(unit.faction, unit.type);
   const animKey = unit.anim.action === 'run' ? 'run' : unit.anim.action === 'attack' ? 'attack' :
     unit.anim.action === 'interact' ? 'interact' : 'idle';
   const sprCfg = sprites?.[animKey] ?? sprites?.['idle'];

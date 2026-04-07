@@ -186,47 +186,63 @@ const LEGION_CONNECTIONS: Connection[] = [
 
 // ── Neutral (Creeps/Monsters) — Tiered Encounter Roster ──────────────────────
 // Represents the neutral creep camps scattered across the map.
-// Uses black/ Tiny Swords building sprites. Creeps use CDN sprites.
+// Layout: three tier-columns, camps at top, units below in two rows each.
+// T1 column x≈0-400  |  T2 column x≈420-860  |  T3 column x≈880-1160
 
 const NEUTRAL_NODES: DesignerNode[] = [
-  // ── Spawn structures (tiered camps) ──────────────────────────────────────────
-  { id: 'n_1', kind: 'building', name: 'Goblin Camp', icon: '🏕️', x: 200, y: 30, w: 140, h: 90, configKey: 'tavern', stats: { hp: 500, foodProvided: 0, buildTime: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Neutral Camp — Spawns goblins & skeletons' },
-  { id: 'n_2', kind: 'building', name: 'Orc Stronghold', icon: '🏰', x: 500, y: 30, w: 140, h: 90, configKey: 'castle', stats: { hp: 800, foodProvided: 0, buildTime: 0 }, color: '#4a5568', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Neutral Camp — Spawns orcs & elementals' },
-  { id: 'n_3', kind: 'building', name: 'Boss Lair', icon: '💀', x: 350, y: 190, w: 140, h: 90, configKey: 'sanctum', stats: { hp: 999, foodProvided: 0, buildTime: 0 }, color: '#7c3aed', tier: 3, cost: { wood: 0, gold: 0 }, description: 'T3 Boss Lair — Spawns legendary bosses' },
-  // ── T1 Creeps (Goblin Camp) ───────────────────────────────────────────────────
-  { id: 'n_4', kind: 'unit', name: 'Goblin', icon: '👺', x: 30, y: 160, w: 120, h: 80, configKey: 'goblin', stats: { hp: 40, damage: 10, armor: 0, speed: 100, range: 40, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Fast light melee' },
-  { id: 'n_5', kind: 'unit', name: 'Spear Goblin', icon: '🗡️', x: 150, y: 160, w: 120, h: 80, configKey: 'spearGoblin', stats: { hp: 55, damage: 14, armor: 0, speed: 90, range: 55, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Goblin with spear' },
-  { id: 'n_6', kind: 'unit', name: 'Archer Goblin', icon: '🏹', x: 270, y: 160, w: 120, h: 80, configKey: 'archerGoblin', stats: { hp: 35, damage: 12, armor: 0, speed: 95, range: 140, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Ranged goblin' },
-  { id: 'n_7', kind: 'unit', name: 'Skeleton', icon: '💀', x: 390, y: 160, w: 120, h: 80, configKey: 'skeleton', stats: { hp: 60, damage: 16, armor: 1, speed: 70, range: 48, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Undead melee' },
-  { id: 'n_8', kind: 'unit', name: 'Slime', icon: '🟢', x: 510, y: 160, w: 120, h: 80, configKey: 'slime', stats: { hp: 40, damage: 10, armor: 0, speed: 60, range: 36, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Slow blob' },
-  // ── T2 Creeps (Orc Stronghold) ────────────────────────────────────────────────
-  { id: 'n_9', kind: 'unit', name: 'Orc', icon: '👹', x: 380, y: 340, w: 120, h: 80, configKey: 'orc', stats: { hp: 100, damage: 20, armor: 1, speed: 85, range: 50, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Tough orc' },
-  { id: 'n_10', kind: 'unit', name: 'Yeti', icon: '🦣', x: 500, y: 340, w: 120, h: 80, configKey: 'yeti', stats: { hp: 220, damage: 35, armor: 3, speed: 80, range: 52, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Icy brute' },
-  { id: 'n_11', kind: 'unit', name: 'Fire Elemental', icon: '🔥', x: 620, y: 340, w: 120, h: 80, configKey: 'fireElemental', stats: { hp: 250, damage: 40, armor: 2, speed: 70, range: 50, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Burns on hit' },
-  { id: 'n_12', kind: 'unit', name: 'Desert Vulture', icon: '🦅', x: 740, y: 340, w: 120, h: 80, configKey: 'desertVulture', stats: { hp: 90, damage: 20, armor: 0, speed: 130, range: 80, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Fast ranged flyer' },
-  // ── T3 Bosses (Boss Lair) ────────────────────────────────────────────────────
-  { id: 'n_13', kind: 'unit', name: 'Ogre Boss', icon: '👑', x: 200, y: 490, w: 120, h: 80, configKey: 'ogreBoss', stats: { hp: 700, damage: 65, armor: 5, speed: 65, range: 65, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Epic item drop' },
-  { id: 'n_14', kind: 'unit', name: 'Steampunk Mech', icon: '🤖', x: 350, y: 490, w: 120, h: 80, configKey: 'steampunkMech', stats: { hp: 900, damage: 85, armor: 6, speed: 55, range: 100, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Legendary item drop' },
-  { id: 'n_15', kind: 'unit', name: 'Dragon', icon: '🐉', x: 500, y: 490, w: 120, h: 80, configKey: 'dragon', stats: { hp: 600, damage: 85, armor: 5, speed: 120, range: 200, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Legendary item drop' },
+  // ── Tier-1 Camp ──────────────────────────────────────────────────────────────
+  { id: 'n_1', kind: 'building', name: 'Goblin Camp', icon: '🏕️', x: 140, y: 30, w: 140, h: 90, configKey: 'tavern', stats: { hp: 500, foodProvided: 0, buildTime: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Neutral Camp — Spawns goblins, skeletons & slimes' },
+  // T1 creeps row-1
+  { id: 'n_4', kind: 'unit', name: 'Goblin', icon: '👺', x: 0, y: 170, w: 120, h: 80, configKey: 'goblin', stats: { hp: 40, damage: 10, armor: 0, speed: 100, range: 40, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Fast light melee' },
+  { id: 'n_5', kind: 'unit', name: 'Spear Goblin', icon: '🗡️', x: 135, y: 170, w: 120, h: 80, configKey: 'spearGoblin', stats: { hp: 55, damage: 14, armor: 0, speed: 90, range: 55, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Goblin with spear' },
+  { id: 'n_6', kind: 'unit', name: 'Archer Goblin', icon: '🏹', x: 270, y: 170, w: 120, h: 80, configKey: 'archerGoblin', stats: { hp: 35, damage: 12, armor: 0, speed: 95, range: 140, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Ranged goblin' },
+  // T1 creeps row-2
+  { id: 'n_7', kind: 'unit', name: 'Skeleton', icon: '💀', x: 0, y: 270, w: 120, h: 80, configKey: 'skeleton', stats: { hp: 60, damage: 16, armor: 1, speed: 70, range: 48, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Undead melee' },
+  { id: 'n_8', kind: 'unit', name: 'Slime', icon: '🟢', x: 135, y: 270, w: 120, h: 80, configKey: 'slime', stats: { hp: 40, damage: 10, armor: 0, speed: 60, range: 36, foodCost: 0 }, color: '#4a5568', tier: 1, cost: { wood: 0, gold: 0 }, description: 'T1 Creep — Slow splitting blob' },
+
+  // ── Tier-2 Camp ──────────────────────────────────────────────────────────────
+  { id: 'n_2', kind: 'building', name: 'Orc Stronghold', icon: '🏰', x: 580, y: 30, w: 140, h: 90, configKey: 'castle', stats: { hp: 800, foodProvided: 0, buildTime: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Neutral Camp — Spawns orcs, elementals & flyers' },
+  // T2 creeps row-1
+  { id: 'n_9', kind: 'unit', name: 'Orc', icon: '👹', x: 420, y: 170, w: 120, h: 80, configKey: 'orc', stats: { hp: 100, damage: 20, armor: 1, speed: 85, range: 50, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Tough melee orc' },
+  { id: 'n_10', kind: 'unit', name: 'Yeti', icon: '🦣', x: 555, y: 170, w: 120, h: 80, configKey: 'yeti', stats: { hp: 220, damage: 35, armor: 3, speed: 80, range: 52, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Icy brute' },
+  { id: 'n_11', kind: 'unit', name: 'Fire Elemental', icon: '🔥', x: 690, y: 170, w: 120, h: 80, configKey: 'fireElemental', stats: { hp: 250, damage: 40, armor: 2, speed: 70, range: 50, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Burns on hit' },
+  // T2 creeps row-2
+  { id: 'n_12', kind: 'unit', name: 'Desert Vulture', icon: '🦅', x: 420, y: 270, w: 120, h: 80, configKey: 'desertVulture', stats: { hp: 90, damage: 20, armor: 0, speed: 130, range: 80, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Fast ranged flyer' },
+  { id: 'n_16', kind: 'unit', name: 'Desert Scorpio', icon: '🦂', x: 555, y: 270, w: 120, h: 80, configKey: 'desertScorpio', stats: { hp: 180, damage: 30, armor: 2, speed: 85, range: 55, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Armoured desert melee' },
+  { id: 'n_17', kind: 'unit', name: 'Mine Elemental', icon: '⛏️', x: 690, y: 270, w: 120, h: 80, configKey: 'mineElemental', stats: { hp: 180, damage: 35, armor: 3, speed: 60, range: 52, foodCost: 0 }, color: '#6b7280', tier: 2, cost: { wood: 0, gold: 0 }, description: 'T2 Creep — Earth spirit from mine areas' },
+
+  // ── Tier-3 Boss Lair ──────────────────────────────────────────────────────────
+  { id: 'n_3', kind: 'building', name: 'Boss Lair', icon: '💀', x: 990, y: 30, w: 140, h: 90, configKey: 'sanctum', stats: { hp: 999, foodProvided: 0, buildTime: 0 }, color: '#7c3aed', tier: 3, cost: { wood: 0, gold: 0 }, description: 'T3 Boss Lair — Spawns legendary bosses with artifact drops' },
+  // T3 bosses row-1
+  { id: 'n_13', kind: 'unit', name: 'Ogre Boss', icon: '👑', x: 880, y: 170, w: 120, h: 80, configKey: 'ogreBoss', stats: { hp: 700, damage: 65, armor: 5, speed: 65, range: 65, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Drops epic item' },
+  { id: 'n_14', kind: 'unit', name: 'Steampunk Mech', icon: '🤖', x: 1010, y: 170, w: 120, h: 80, configKey: 'steampunkMech', stats: { hp: 900, damage: 85, armor: 6, speed: 55, range: 100, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Drops legendary item' },
+  // T3 bosses row-2
+  { id: 'n_15', kind: 'unit', name: 'Dragon', icon: '🐉', x: 880, y: 270, w: 120, h: 80, configKey: 'dragon', stats: { hp: 600, damage: 85, armor: 5, speed: 120, range: 200, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Drops legendary item' },
+  { id: 'n_18', kind: 'unit', name: 'Mimic', icon: '📦', x: 1010, y: 270, w: 120, h: 80, configKey: 'mimic', stats: { hp: 200, damage: 50, armor: 3, speed: 30, range: 48, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Ambush chest, high damage surprise' },
+  { id: 'n_19', kind: 'unit', name: 'Pirate Captain', icon: '🏴‍☠️', x: 1140, y: 270, w: 120, h: 80, configKey: 'pirateCaptainHero', stats: { hp: 400, damage: 55, armor: 4, speed: 95, range: 200, foodCost: 0 }, color: '#b45309', tier: 3, cost: { wood: 0, gold: 0 }, description: 'Boss — Ranged hero-class enemy, drops rare item' },
 ];
 
 const NEUTRAL_CONNECTIONS: Connection[] = [
-  // Goblin Camp spawns T1
+  // Goblin Camp → T1 creeps
   { id: 'nc_1', fromNodeId: 'n_1', toNodeId: 'n_4', type: 'trains' },
   { id: 'nc_2', fromNodeId: 'n_1', toNodeId: 'n_5', type: 'trains' },
   { id: 'nc_3', fromNodeId: 'n_1', toNodeId: 'n_6', type: 'trains' },
   { id: 'nc_4', fromNodeId: 'n_1', toNodeId: 'n_7', type: 'trains' },
   { id: 'nc_5', fromNodeId: 'n_1', toNodeId: 'n_8', type: 'trains' },
-  // Orc Stronghold spawns T2
+  // Orc Stronghold → T2 creeps
   { id: 'nc_6', fromNodeId: 'n_2', toNodeId: 'n_9', type: 'trains' },
   { id: 'nc_7', fromNodeId: 'n_2', toNodeId: 'n_10', type: 'trains' },
   { id: 'nc_8', fromNodeId: 'n_2', toNodeId: 'n_11', type: 'trains' },
   { id: 'nc_9', fromNodeId: 'n_2', toNodeId: 'n_12', type: 'trains' },
-  // Boss Lair spawns T3
+  { id: 'nc_15', fromNodeId: 'n_2', toNodeId: 'n_16', type: 'trains' },
+  { id: 'nc_16', fromNodeId: 'n_2', toNodeId: 'n_17', type: 'trains' },
+  // Boss Lair → T3 bosses
   { id: 'nc_10', fromNodeId: 'n_3', toNodeId: 'n_13', type: 'trains' },
   { id: 'nc_11', fromNodeId: 'n_3', toNodeId: 'n_14', type: 'trains' },
   { id: 'nc_12', fromNodeId: 'n_3', toNodeId: 'n_15', type: 'trains' },
-  // Tier progression
+  { id: 'nc_17', fromNodeId: 'n_3', toNodeId: 'n_18', type: 'trains' },
+  { id: 'nc_18', fromNodeId: 'n_3', toNodeId: 'n_19', type: 'trains' },
+  // Tier progression gates
   { id: 'nc_13', fromNodeId: 'n_1', toNodeId: 'n_2', type: 'requires' },
   { id: 'nc_14', fromNodeId: 'n_2', toNodeId: 'n_3', type: 'requires' },
 ];
