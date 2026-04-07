@@ -24,6 +24,42 @@ const EDGE_SCROLL_SPEED = 12;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
 
+// ── Game-over overlay — separate component avoids IDE formatter mangling ─────────
+function GameOverlay({ result, onReturn }: {
+  result: 'playing' | 'won' | 'lost';
+  onReturn: () => void;
+}) {
+  if (result === 'won') {
+    return (
+      <div className= "absolute inset-0 bg-black/75 z-50 flex items-center justify-center pointer-events-auto" >
+      <div className="text-center" >
+        <div className="text-7xl mb-4" >🏆</div>
+          < h2 className = "text-5xl font-black text-amber-400 mb-3" > VICTORY! </h2>
+            < p className = "text-zinc-300 text-lg mb-8" > Your castle stands supreme.</p>
+              < Button size = "lg" className = "bg-amber-600 hover:bg-amber-500 text-white px-10 font-bold" onClick = { onReturn } >
+                Return to Menu
+                  </Button>
+                  </div>
+                  </div>
+    );
+  }
+  if (result === 'lost') {
+    return (
+      <div className= "absolute inset-0 bg-black/85 z-50 flex items-center justify-center pointer-events-auto" >
+      <div className="text-center" >
+        <div className="text-7xl mb-4" >💀</div>
+          < h2 className = "text-5xl font-black text-red-500 mb-3" > DEFEATED </h2>
+            < p className = "text-zinc-300 text-lg mb-8" > Your castle has fallen.</p>
+              < Button size = "lg" className = "bg-red-700 hover:bg-red-600 text-white px-10 font-bold" onClick = { onReturn } >
+                Return to Menu
+                  </Button>
+                  </div>
+                  </div>
+    );
+  }
+  return null;
+}
+
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,6 +69,7 @@ export function GameCanvas() {
   const canvasSizeRef = useRef({ w: 1200, h: 700 });
   const mouseRef = useRef({ x: 0, y: 0, inCanvas: false });
   const lastClickRef = useRef({ time: 0, unitType: '' });
+  const prevGameResultRef = useRef<'playing' | 'won' | 'lost'>('playing');
 
   const [phase, setPhase] = useState<GamePhase>('menu');
   const [gameResult, setGameResult] = useState<'playing' | 'won' | 'lost'>('playing');
@@ -64,6 +101,9 @@ export function GameCanvas() {
 
   // ── Start game (with preload phase) ────────────────────────────────────────
   const startGame = useCallback(() => {
+    // Reset game result state so no stale overlay appears on new game
+    prevGameResultRef.current = 'playing';
+    setGameResult('playing');
     // Trigger sprite preload and enter loading phase
     spriteLoader.preloadAll();
     setPhase('loading');
@@ -124,9 +164,12 @@ export function GameCanvas() {
         fxController.update(dt);
         renderGame(ctx, stateRef.current, w, h, dt);
         fxController.renderParticles(ctx, stateRef.current.camera.x, stateRef.current.camera.y, stateRef.current.zoom);
-        // Detect win / loss and surface to React
+        // Detect win / loss — only fire setGameResult once per transition
         const gs = stateRef.current.gameStatus;
-        if (gs === 'won' || gs === 'lost') setGameResult(gs);
+        if ((gs === 'won' || gs === 'lost') && gs !== prevGameResultRef.current) {
+          prevGameResultRef.current = gs;
+          setGameResult(gs);
+        }
       }
       fpsCounter++;
       fpsTimer += dt;
@@ -543,15 +586,25 @@ export function GameCanvas() {
     setAttackMoveMode(true);
   }, []);
 
+// Return to menu — cancels loop and resets overlay state
+const handleMenuReturn = useCallback(() => {
+  cancelAnimationFrame(animRef.current);
+  prevGameResultRef.current = 'playing';
+  setGameResult('playing');
+  setPhase('menu');
+}, []);
+
   return (
     <div className="h-full bg-black relative">
-      <div ref={containerRef} className="absolute inset-0 overflow-hidden" style={{ cursor: buildMode ? 'crosshair' : attackMoveMode ? 'crosshair' : 'default' }}>
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ imageRendering: 'pixelated' }}
+  <div ref={ containerRef } className = "absolute inset-0 overflow-hidden"
+style = {{ cursor: buildMode || attackMoveMode ? 'crosshair' : 'default' }}>
+  <canvas ref={ canvasRef } className = "absolute inset-0 w-full h-full"
+style = {{ imageRendering: 'pixelated' }}
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave} onWheel={handleWheel} onContextMenu={handleContextMenu} />
       </div>
 
-      {/* Single React HUD overlay — all UI in one place */}
+{/* React HUD overlay */ }
       <GameHUD
         state={stateRef.current}
         onTrain={handleHUDTrain}
@@ -567,40 +620,17 @@ export function GameCanvas() {
         setBuildMenuOpen={setBuildMenuOpen}
       />
 
-  { gameResult === 'won' && (
-    <div className="absolute inset-0 bg-black/75 z-50 flex items-center justify-center pointer-events-auto" >
-      <div className="text-center" >
-        <div className="text-7xl mb-4" >🏆</div>
-          < h2 className = "text-5xl font-black text-amber-400 mb-3" > VICTORY! </h2>
-            < p className = "text-zinc-300 text-lg mb-8" > Your castle stands supreme.</p>
-              < Button size = "lg" className = "bg-amber-600 hover:bg-amber-500 text-white px-10 font-bold"
-onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }}>
-  Return to Menu
-    </Button>
-    </div>
-    </div>
-      )}
-{
-  gameResult === 'lost' && (
-    <div className="absolute inset-0 bg-black/85 z-50 flex items-center justify-center pointer-events-auto" >
-      <div className="text-center" >
-        <div className="text-7xl mb-4" >💀</div>
-          < h2 className = "text-5xl font-black text-red-500 mb-3" > DEFEATED </h2>
-            < p className = "text-zinc-300 text-lg mb-8" > Your castle has fallen.</p>
-              < Button size = "lg" className = "bg-red-700 hover:bg-red-600 text-white px-10 font-bold"
-  onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }
-}>
-  Return to Menu
-    </Button>
-    </div>
-    </div>
-      )}
+  {/* Victory / Defeat overlay — rendered by standalone component */ }
+  < GameOverlay result = { gameResult } onReturn = { handleMenuReturn } />
 
-{/* Menu button + FPS */ }
+        {/* FPS counter + Menu button */ }
       <div className="absolute top-1 right-2 flex items-center gap-2 z-40 pointer-events-auto">
-        <Badge variant="secondary" className="text-[9px] bg-black/60 border-zinc-700">{fps} FPS</Badge>
-  < Button size = "sm" variant = "ghost" className = "h-7 text-[10px] bg-black/60 hover:bg-zinc-800"
-onClick = {() => { cancelAnimationFrame(animRef.current); setGameResult('playing'); setPhase('menu'); }}>
+  <Badge variant="secondary" className = "text-[9px] bg-black/60 border-zinc-700" >
+    { fps } FPS
+      </Badge>
+      < Button size = "sm" variant = "ghost"
+className = "h-7 text-[10px] bg-black/60 hover:bg-zinc-800"
+onClick = { handleMenuReturn } >
           <RotateCcw className="h-3 w-3 mr-1" /> Menu
         </Button>
       </div>
