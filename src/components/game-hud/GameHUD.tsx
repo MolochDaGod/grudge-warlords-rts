@@ -13,7 +13,7 @@
  *   6. Minimap: Bottom-right corner
  */
 
-import { memo } from 'react';
+import { memo, type JSX } from 'react';
 import type { GameState, Unit, Building, UnitType, BuildingType } from '@/lib/rts-engine/types';
 import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
 
@@ -37,6 +37,7 @@ const HERO_ICONS: Record<string, string> = {
 // ── Props ───────────────────────────────────────────────────────────────────────
 interface GameHUDProps {
   state: GameState | null;
+  tick: number; // increments each HUD frame, breaks memo on stateRef children
   onTrain: (buildingId: string, unitType: UnitType) => void;
   onSummonHero: (heroType: UnitType) => void;
   onBuild: (type: BuildingType) => void;
@@ -51,7 +52,8 @@ interface GameHUDProps {
 }
 
 // ── Resource Bar (Top) ──────────────────────────────────────────────────────────
-const ResourceBar = memo(({ state }: { state: GameState }) => {
+// Not memoized — state is a mutable ref object; reference equality never changes.
+function ResourceBar({ state }: { state: GameState }): JSX.Element {
   const res = state.playerResources;
   const upkeepColor = state.upkeepLevel === 'none' ? 'text-green-400' : state.upkeepLevel === 'low' ? 'text-amber-400' : 'text-red-400';
   const dayIcon = state.timeOfDay === 'day' ? '☀️' : '🌙';
@@ -80,10 +82,10 @@ const ResourceBar = memo(({ state }: { state: GameState }) => {
       <div className="text-xs text-zinc-400">{dayIcon} {minutes}:{seconds}</div>
     </div>
   );
-});
+}
 
 // ── Hero Portraits ──────────────────────────────────────────────────────────────
-const HeroPortraits = memo(({ state }: { state: GameState }) => {
+function HeroPortraits({ state }: { state: GameState }): JSX.Element | null {
   const heroes: Unit[] = [];
   for (const [, u] of state.units) {
     if (u.faction === 'blue' && u.isHero && u.state !== 'dead') heroes.push(u);
@@ -108,14 +110,15 @@ const HeroPortraits = memo(({ state }: { state: GameState }) => {
       ))}
     </div>
   );
-});
+}
 
 // ── Selection Panel (Bottom-Left) ───────────────────────────────────────────────
-const SelectionPanel = memo(({ state, onTrain, onSummonHero }: {
+// Not memoized — receives mutable state ref, must re-render on tick.
+function SelectionPanel({ state, onTrain, onSummonHero }: {
   state: GameState;
   onTrain: (buildingId: string, unitType: UnitType) => void;
   onSummonHero: (heroType: UnitType) => void;
-}) => {
+}) {
   const selectedUnits: Unit[] = [];
   for (const uid of state.selected) {
     const u = state.units.get(uid);
@@ -269,7 +272,7 @@ const SelectionPanel = memo(({ state, onTrain, onSummonHero }: {
       })()}
     </div>
   );
-});
+}
 
 // ── Action Bar (Bottom-Center) ──────────────────────────────────────────────────
 const ActionBar = memo(({ onStop, onHold, onAttackMove }: Pick<GameHUDProps, 'onStop' | 'onHold' | 'onAttackMove'>) => (
@@ -319,7 +322,7 @@ const BuildMenu = memo(({ open, onBuild, onClose }: { open: boolean; onBuild: (b
 
 // ── Main HUD Export ─────────────────────────────────────────────────────────────
 export function GameHUD({
-  state, onTrain, onSummonHero, onBuild, onStop, onHold, onAttackMove,
+  state, tick: _tick, onTrain, onSummonHero, onBuild, onStop, onHold, onAttackMove,
   buildMode, attackMoveMode, setBuildMode, buildMenuOpen, setBuildMenuOpen,
 }: GameHUDProps) {
   if (!state) return null;

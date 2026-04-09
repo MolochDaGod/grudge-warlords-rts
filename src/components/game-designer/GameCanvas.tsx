@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Play, RotateCcw } from 'lucide-react';
+import { Play, RotateCcw, Home } from 'lucide-react';
 import {
   createInitialState, updateGame,
   commandMove, commandAttack, commandHarvest, commandBuild,
@@ -12,19 +13,19 @@ import {
 import { renderGame } from '@/lib/rts-engine/renderer';
 import { MAPS } from '@/lib/rts-engine/maps';
 import { fxController } from '@/lib/rts-engine/fx-controller';
-import { BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
+import { BUILDING_CONFIGS } from '@/lib/rts-engine/constants';
 import { spriteLoader } from '@/lib/rts-engine/sprite-loader';
 import { GameHUD } from '@/components/game-hud/GameHUD';
 import type { GameState, Vec2, BuildingType, UnitType } from '@/lib/rts-engine/types';
 
-type GamePhase = 'menu' | 'loading' | 'playing' | 'paused';
+type GamePhase = 'menu' | 'loading' | 'playing';
 
 const EDGE_SCROLL_ZONE = 30;
 const EDGE_SCROLL_SPEED = 12;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
 
-// ── Game-over overlay — separate component avoids IDE formatter mangling ─────────
+// ── Game-over overlay — separate component to keep clean JSX ─────────────────
 function GameOverlay({ result, onReturn }: {
   result: 'playing' | 'won' | 'lost';
   onReturn: () => void;
@@ -34,8 +35,8 @@ function GameOverlay({ result, onReturn }: {
       <div className= "absolute inset-0 bg-black/75 z-50 flex items-center justify-center pointer-events-auto" >
       <div className="text-center" >
         <div className="text-7xl mb-4" >🏆</div>
-          < h2 className = "text-5xl font-black text-amber-400 mb-3" > VICTORY! </h2>
-            < p className = "text-zinc-300 text-lg mb-8" > Your castle stands supreme.</p>
+      < h2 className = "text-5xl font-black text-amber-400 mb-3" > VICTORY! </h2>
+        < p className = "text-zinc-300 text-lg mb-8" > Your castle stands supreme.</p>
               < Button size = "lg" className = "bg-amber-600 hover:bg-amber-500 text-white px-10 font-bold" onClick = { onReturn } >
                 Return to Menu
                   </Button>
@@ -48,8 +49,8 @@ function GameOverlay({ result, onReturn }: {
       <div className= "absolute inset-0 bg-black/85 z-50 flex items-center justify-center pointer-events-auto" >
       <div className="text-center" >
         <div className="text-7xl mb-4" >💀</div>
-          < h2 className = "text-5xl font-black text-red-500 mb-3" > DEFEATED </h2>
-            < p className = "text-zinc-300 text-lg mb-8" > Your castle has fallen.</p>
+      < h2 className = "text-5xl font-black text-red-500 mb-3" > DEFEATED </h2>
+        < p className = "text-zinc-300 text-lg mb-8" > Your castle has fallen.</p>
               < Button size = "lg" className = "bg-red-700 hover:bg-red-600 text-white px-10 font-bold" onClick = { onReturn } >
                 Return to Menu
                   </Button>
@@ -80,6 +81,7 @@ export function GameCanvas() {
   const [buildMenuOpen, setBuildMenuOpen] = useState(false);
   const [fps, setFps] = useState(0);
   const [loadProgress, setLoadProgress] = useState(0);
+  const [hudTick, setHudTick] = useState(0);
 
   // ── Responsive canvas sizing ──────────────────────────────────────────────
   useEffect(() => {
@@ -141,6 +143,7 @@ export function GameCanvas() {
     if (!ctx) return;
     let fpsCounter = 0;
     let fpsTimer = 0;
+    let hudFrame = 0;
 
     const loop = (now: number) => {
       const dt = Math.min((now - lastTimeRef.current) / 1000, 0.1);
@@ -174,6 +177,8 @@ export function GameCanvas() {
       fpsCounter++;
       fpsTimer += dt;
       if (fpsTimer >= 1) { setFps(fpsCounter); fpsCounter = 0; fpsTimer = 0; }
+      hudFrame++;
+      if (hudFrame >= 6) { hudFrame = 0; setHudTick(t => (t + 1) & 255); }
       animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
@@ -199,8 +204,8 @@ export function GameCanvas() {
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
-    const { h } = canvasSizeRef.current;
-    const mw = 176, mh = 110, mx = 8, my = h - mh - 8;
+    const { w, h } = canvasSizeRef.current;
+    const mw = 176, mh = 110, mx = w - mw - 8, my = h - mh - 8;
     if (sx >= mx && sx <= mx + mw && sy >= my && sy <= my + mh) {
       let worldW = 3600, worldH = 2100;
       for (const isl of stateRef.current.islands) {
@@ -438,6 +443,39 @@ export function GameCanvas() {
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => e.preventDefault(), []);
 
+  // ── HUD + menu-return handlers — must be declared BEFORE any early returns ───
+  const handleHUDBuild = useCallback((bt: BuildingType) => {
+    setBuildMode(bt);
+    setBuildMenuOpen(false);
+  }, []);
+
+  const handleHUDTrain = useCallback((buildingId: string, unitType: UnitType) => {
+    if (stateRef.current) commandTrain(stateRef.current, buildingId, unitType);
+  }, []);
+
+  const handleHUDSummonHero = useCallback((heroType: UnitType) => {
+    if (stateRef.current) commandSummonHero(stateRef.current, heroType);
+  }, []);
+
+  const handleHUDStop = useCallback(() => {
+    if (stateRef.current) commandStop(stateRef.current);
+  }, []);
+
+  const handleHUDHold = useCallback(() => {
+    if (stateRef.current) commandHold(stateRef.current);
+  }, []);
+
+  const handleHUDAttackMove = useCallback(() => {
+    setAttackMoveMode(true);
+  }, []);
+
+  const handleMenuReturn = useCallback(() => {
+    cancelAnimationFrame(animRef.current);
+    prevGameResultRef.current = 'playing';
+    setGameResult('playing');
+    setPhase('menu');
+  }, []);
+
   // ══════════════════════════════════════════════════════════════════════════════
   // MENU
   // ══════════════════════════════════════════════════════════════════════════════
@@ -522,6 +560,13 @@ export function GameCanvas() {
           <Play className="h-5 w-5 mr-2" /> Start Game
         </Button>
 
+{/* Home link */ }
+<Link href="/" >
+  <Button size="sm" variant = "ghost" className = "mt-3 text-white/40 hover:text-white/70 text-xs" >
+    <Home className="h-3.5 w-3.5 mr-1" /> Back to Home
+      </Button>
+      </Link>
+
         {/* Controls */}
         <div className="mt-5 text-[10px] text-white/30 max-w-md text-center leading-relaxed bg-black/10 rounded-lg px-4 py-2">
           <span className="text-white/50 font-bold">Controls:</span>{' '}
@@ -560,53 +605,31 @@ export function GameCanvas() {
 
   // ══════════════════════════════════════════════════════════════════════════════
   // GAME — Canvas + React HUD overlay (single clean layer)
-  // ══════════════════════════════════════════════════════════════════════════════
-  const handleHUDBuild = useCallback((bt: BuildingType) => {
-    setBuildMode(bt);
-    setBuildMenuOpen(false);
-  }, []);
-
-  const handleHUDTrain = useCallback((buildingId: string, unitType: UnitType) => {
-    if (stateRef.current) commandTrain(stateRef.current, buildingId, unitType);
-  }, []);
-
-  const handleHUDSummonHero = useCallback((heroType: UnitType) => {
-    if (stateRef.current) commandSummonHero(stateRef.current, heroType);
-  }, []);
-
-  const handleHUDStop = useCallback(() => {
-    if (stateRef.current) commandStop(stateRef.current);
-  }, []);
-
-  const handleHUDHold = useCallback(() => {
-    if (stateRef.current) commandHold(stateRef.current);
-  }, []);
-
-  const handleHUDAttackMove = useCallback(() => {
-    setAttackMoveMode(true);
-  }, []);
-
-// Return to menu — cancels loop and resets overlay state
-const handleMenuReturn = useCallback(() => {
-  cancelAnimationFrame(animRef.current);
-  prevGameResultRef.current = 'playing';
-  setGameResult('playing');
-  setPhase('menu');
-}, []);
-
+// ══════════════════════════════════════════════════════════════════════════════
   return (
     <div className="h-full bg-black relative">
-  <div ref={ containerRef } className = "absolute inset-0 overflow-hidden"
-style = {{ cursor: buildMode || attackMoveMode ? 'crosshair' : 'default' }}>
-  <canvas ref={ canvasRef } className = "absolute inset-0 w-full h-full"
+  <div
+        ref={ containerRef }
+className = "absolute inset-0 overflow-hidden"
+style = {{ cursor: buildMode || attackMoveMode ? 'crosshair' : 'default' }}
+      >
+  <canvas
+          ref={ canvasRef }
+className = "absolute inset-0 w-full h-full"
 style = {{ imageRendering: 'pixelated' }}
-          onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave} onWheel={handleWheel} onContextMenu={handleContextMenu} />
+onMouseDown = { handleMouseDown }
+onMouseMove = { handleMouseMove }
+onMouseUp = { handleMouseUp }
+onMouseLeave = { handleMouseLeave }
+onWheel = { handleWheel }
+onContextMenu = { handleContextMenu }
+  />
       </div>
 
 {/* React HUD overlay */ }
       <GameHUD
         state={stateRef.current}
+tick = { hudTick }
         onTrain={handleHUDTrain}
         onSummonHero={handleHUDSummonHero}
         onBuild={handleHUDBuild}
@@ -620,7 +643,7 @@ style = {{ imageRendering: 'pixelated' }}
         setBuildMenuOpen={setBuildMenuOpen}
       />
 
-  {/* Victory / Defeat overlay — rendered by standalone component */ }
+  {/* Victory / Defeat overlay */ }
   < GameOverlay result = { gameResult } onReturn = { handleMenuReturn } />
 
         {/* FPS counter + Menu button */ }
@@ -628,11 +651,9 @@ style = {{ imageRendering: 'pixelated' }}
   <Badge variant="secondary" className = "text-[9px] bg-black/60 border-zinc-700" >
     { fps } FPS
       </Badge>
-      < Button size = "sm" variant = "ghost"
-className = "h-7 text-[10px] bg-black/60 hover:bg-zinc-800"
-onClick = { handleMenuReturn } >
+  < Button size = "sm" variant = "ghost" className = "h-7 text-[10px] bg-black/60 hover:bg-zinc-800" onClick = { handleMenuReturn } >
           <RotateCcw className="h-3 w-3 mr-1" /> Menu
-        </Button>
+            </Button>
       </div>
     </div>
   );

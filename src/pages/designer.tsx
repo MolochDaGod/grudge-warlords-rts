@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Save, Upload, FileDown, FolderDown, RotateCcw } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
 import { DesignerCanvas } from '@/components/game-designer/DesignerCanvas';
 import { NodePalette } from '@/components/game-designer/NodePalette';
 import { PropertiesPanel } from '@/components/game-designer/PropertiesPanel';
