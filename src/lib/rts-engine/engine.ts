@@ -4,7 +4,7 @@ import {
   PlayerResources, TechTier, HERO_XP_TABLE,
 } from './types';
 import {
-  UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS,
+  UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ITEM_DEFS, ABILITY_DEFS,
   WATER_SPEED_MULT, WATER_DAMAGE_RATE, CYCLE_LENGTH, DAY_DURATION,
   UPKEEP_NONE_MAX, UPKEEP_LOW_MAX, UPKEEP_NONE_RATE, UPKEEP_LOW_RATE, UPKEEP_HIGH_RATE,
   PRIEST_HEAL_RANGE, PRIEST_HEAL_AMOUNT, PRIEST_HEAL_PULSE,
@@ -307,6 +307,25 @@ export function updateGame(state: GameState, dt: number): void {
       if (ab.cooldownRemaining > 0) ab.cooldownRemaining = Math.max(0, ab.cooldownRemaining - dt);
     }
 
+    // Slow / AoE timers
+    if (unit.slowTimer > 0) unit.slowTimer = Math.max(0, unit.slowTimer - dt);
+    if (unit.aoeTimer > 0) unit.aoeTimer = Math.max(0, unit.aoeTimer - dt);
+
+    // Hero passive auras
+    if (unit.isHero && unit.state !== 'dead') {
+      // Brilliance Aura (Kanji) — mana regen for nearby allies
+      const brillianceAb = unit.abilities.find(a => a.abilityId === 'brilliance_aura' && a.rank > 0);
+      if (brillianceAb) {
+        const manaRegen = ABILITY_DEFS.brilliance_aura.effectPerRank[brillianceAb.rank - 1] ?? 0;
+        for (const [, ally] of state.units) {
+          if (ally.faction !== unit.faction || ally.state === 'dead' || ally.maxMana <= 0) continue;
+          if (dist(unit.pos, ally.pos) < 250) {
+            ally.mana = Math.min(ally.maxMana, ally.mana + manaRegen * dt);
+          }
+        }
+      }
+    }
+
     // Attack cooldown
     if (unit.attackCooldown > 0) unit.attackCooldown -= dt;
 
@@ -400,20 +419,53 @@ export function updateGame(state: GameState, dt: number): void {
             };
             state.projectiles.set(proj.id, proj);
           } else {
-            // Melee → instant damage
-            target.hp -= totalDmg;
-            state.floatingTexts.push({
-              id: uid(), pos: { ...target.pos },
-              text: `-${totalDmg}`, color: unit.faction === 'blue' ? '#ff4444' : '#ff8800',
-              age: 0, maxAge: 1,
-            });
-            // Hit VFX + particles
-            const vfxType = HIT_VFX[unit.type] ?? randomRetroCrit();
-            state.vfxEffects.set(uid(), { id: uid(), pos: { ...target.pos }, type: vfxType, age: 0, duration: 0.3 });
-            const display = getUnitDisplay(unit.type);
-            fxController.playHit({ ...target.pos }, display.projectile, state);
+            // Evasion passive (Katan) — dodge chance
+            const evasionAb = target.isHero ? target.abilities.find(a => a.abilityId === 'evasion' && a.rank > 0) : null;
+            if (evasionAb && Math.random() < (ABILITY_DEFS.evasion.effectPerRank[evasionAb.rank - 1] ?? 0) / 100) {
+              state.floatingTexts.push({ id: uid(), pos: { ...target.pos }, text: 'EVADE!', color: '#88ffff', age: 0, maxAge: 1 });
+            } else {
+              // Blade Dance passive — double damage chance (Gangblanc)
+              const bladeDanceAb = unit.isHero ? unit.abilities.find(a => a.abilityId === 'blade_dance' && a.rank > 0) : null;
+              const doubleDmg = bladeDanceAb && Math.random() < (ABILITY_DEFS.blade_dance.effectPerRank[bladeDanceAb.rank - 1] ?? 0) / 100;
+              const finalDmg = doubleDmg ? totalDmg * 2 : totalDmg;
 
-            if (target.hp <= 0) killUnit(state, target, unit);
+              // Melee → instant damage
+              target.hp -= finalDmg;
+              state.floatingTexts.push({
+                id: uid(), pos: { ...target.pos },
+                text: doubleDmg ? `⚔️×2 -${finalDmg}` : `-${totalDmg}`,
+                color: doubleDmg ? '#ff00aa' : (unit.faction === 'blue' ? '#ff4444' : '#ff8800'),
+                age: 0, maxAge: 1,
+              });
+              // Hit VFX + particles
+              const vfxType = HIT_VFX[unit.type] ?? randomRetroCrit();
+              state.vfxEffects.set(uid(), { id: uid(), pos: { ...target.pos }, type: vfxType, age: 0, duration: 0.3 });
+              const display = getUnitDisplay(unit.type);
+              fxController.playHit({ ...target.pos }, display.projectile, state);
+
+              // Cleave Strike passive — AoE splash (Arthax)
+              const cleaveAb = unit.isHero ? unit.abilities.find(a => a.abilityId === 'cleave_strike' && a.rank > 0) : null;
+              if (cleaveAb) {
+                const cleavePct = (ABILITY_DEFS.cleave_strike.effectPerRank[cleaveAb.rank - 1] ?? 0) / 100;
+                const cleaveDmg = Math.max(1, Math.round(totalDmg * cleavePct));
+                for (const [, nb] of state.units) {
+                  if (nb.id === target.id || nb.faction === unit.faction || nb.state === 'dead') continue;
+                  if (dist(unit.pos, nb.pos) < 100) {
+                    nb.hp -= cleaveDmg;
+                    if (nb.hp <= 0) killUnit(state, nb, unit);
+                  }
+                }
+              }
+
+              // Bash passive — stun chance (Grum)
+              const bashAb = unit.isHero ? unit.abilities.find(a => a.abilityId === 'bash' && a.rank > 0) : null;
+              if (bashAb && Math.random() < (ABILITY_DEFS.bash.effectPerRank[bashAb.rank - 1] ?? 0) / 100) {
+                target.stunTimer = Math.max(target.stunTimer, 1.5);
+                state.floatingTexts.push({ id: uid(), pos: { ...target.pos }, text: 'BASH!', color: '#ffff00', age: 0, maxAge: 1 });
+              }
+
+              if (target.hp <= 0) killUnit(state, target, unit);
+            }
           }
           unit.attackCooldown = heroCfg?.attackSpeed ?? cfg?.attackSpeed ?? 1.0;
         }
@@ -809,16 +861,30 @@ function killUnit(state: GameState, unit: Unit, killer: Unit | null): void {
         grantXp(u, xpValue, state);
       }
     }
+    // Passive: Blood Rage (Borg) — heal on kill
+    const bloodRageAb = killer.isHero ? killer.abilities.find(a => a.abilityId === 'blood_rage' && a.rank > 0) : null;
+    if (bloodRageAb) {
+      const brPct = (ABILITY_DEFS.blood_rage.effectPerRank[bloodRageAb.rank - 1] ?? 0) / 100;
+      killer.hp = Math.min(killer.hp + Math.round(killer.maxHp * brPct), killer.maxHp);
+    }
   }
 
   // Hero death → add to revival queue
   if (unit.isHero) {
     const heroCfg = HERO_CONFIGS.find(h => h.type === unit.type);
-    state.deadHeroes.push({
-      unitId: unit.id,
-      reviveTimer: heroCfg?.reviveTime ?? 55,
-      reviveCost: heroCfg?.reviveCost ?? 425,
-    });
+    // Passive: Reincarnation (Grum ultimate) — fast auto-revive
+    const reincarnationAb = unit.abilities.find(a => a.abilityId === 'reincarnation' && a.rank > 0 && a.cooldownRemaining <= 0);
+    if (reincarnationAb) {
+      reincarnationAb.cooldownRemaining = ABILITY_DEFS.reincarnation.cooldown;
+      state.deadHeroes.push({ unitId: unit.id, reviveTimer: 5, reviveCost: 0 });
+      state.floatingTexts.push({ id: uid(), pos: { ...unit.pos }, text: '♻️ REINCARNATION!', color: '#ffd700', age: 0, maxAge: 2.5 });
+    } else {
+      state.deadHeroes.push({
+        unitId: unit.id,
+        reviveTimer: heroCfg?.reviveTime ?? 55,
+        reviveCost: heroCfg?.reviveCost ?? 425,
+      });
+    }
   }
 
   // Check if this was part of a creep camp
@@ -1490,5 +1556,379 @@ export function commandUpgradeTownHall(state: GameState): boolean {
   th.hp = cfg.hp;
   th.techTier = cfg.techTier as TechTier;
   state.techTier = th.techTier;
+  return true;
+}
+
+// ── Hero Abilities ─────────────────────────────────────────────────────────────
+
+export function commandRankUpAbility(
+  state: GameState,
+  heroId: string,
+  abilityIdx: number,
+): boolean {
+  const hero = state.units.get(heroId);
+  if (!hero || !hero.isHero || hero.abilityPoints <= 0) return false;
+  const aState = hero.abilities[abilityIdx];
+  if (!aState) return false;
+  const def = ABILITY_DEFS[aState.abilityId];
+  if (!def) return false;
+  if (aState.rank >= def.maxRank) return false;
+  if (hero.heroLevel < def.levelRequired) return false;
+  if (def.isUltimate && hero.heroLevel < 6) return false;
+
+  hero.abilityPoints--;
+  aState.rank++;
+  state.floatingTexts.push({
+    id: uid(), pos: { ...hero.pos },
+    text: `${def.name} Rank ${aState.rank}!`, color: '#ffd700', age: 0, maxAge: 2,
+  });
+  return true;
+}
+
+export function commandCastAbility(
+  state: GameState,
+  heroId: string,
+  abilityIdx: number,
+  targetPos?: Vec2,
+  targetUnitId?: string,
+): boolean {
+  const hero = state.units.get(heroId);
+  if (!hero || !hero.isHero || hero.state === 'dead' || hero.stunTimer > 0) return false;
+  const aState = hero.abilities[abilityIdx];
+  if (!aState || aState.rank === 0) return false;
+  const def = ABILITY_DEFS[aState.abilityId];
+  if (!def) return false;
+  // Passives can't be manually cast
+  if (def.cooldown === 0 && def.manaCost === 0) return false;
+  if (aState.cooldownRemaining > 0) return false;
+  if (hero.mana < def.manaCost) return false;
+
+  hero.mana -= def.manaCost;
+  aState.cooldownRemaining = def.cooldown;
+  const rank = Math.max(1, aState.rank);
+  const effect = def.effectPerRank[rank - 1] ?? def.effectPerRank[0] ?? 0;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function ft(pos: Vec2, text: string, color: string, maxAge = 1.5): void {
+    state.floatingTexts.push({ id: uid(), pos: { ...pos }, text, color, age: 0, maxAge });
+  }
+  function vfxAt(pos: Vec2, type: string, duration = 0.5): void {
+    const vid = uid();
+    state.vfxEffects.set(vid, { id: vid, pos: { ...pos }, type, age: 0, duration });
+  }
+  function gfxAt(pos: Vec2, radius: number, dotDmg: number, duration: number, vfxType: string): void {
+    const gid = uid();
+    state.groundEffects.set(gid, { id: gid, pos: { ...pos }, radius, vfxType, age: 0, duration, dotDamage: dotDmg, dotInterval: 0.5, dotTimer: 0, casterFaction: hero.faction });
+  }
+  function aoeEnemies(center: Vec2, radius: number): Unit[] {
+    const out: Unit[] = [];
+    for (const [, u] of state.units) {
+      if (u.faction === hero.faction || u.state === 'dead') continue;
+      if (dist(u.pos, center) <= radius) out.push(u);
+    }
+    return out;
+  }
+  function getEnemy(): Unit | null {
+    if (!targetUnitId) return null;
+    const t = state.units.get(targetUnitId);
+    return (t && t.state !== 'dead' && t.faction !== hero.faction) ? t : null;
+  }
+  function getFriend(): Unit | null {
+    if (!targetUnitId) return null;
+    const t = state.units.get(targetUnitId);
+    return (t && t.state !== 'dead' && t.faction === hero.faction) ? t : null;
+  }
+  function fireProjectile(from: Vec2, to: Vec2, targetId: string, dmg: number): void {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const pid = uid();
+    state.projectiles.set(pid, { id: pid, pos: { ...from }, vel: { x: dx / d * 420, y: dy / d * 420 }, targetId, damage: dmg, faction: hero.faction, projectileStyle: 'arrow' });
+  }
+
+  // ── Ability effects ────────────────────────────────────────────────────────
+  switch (aState.abilityId) {
+
+    // ─── Arthax (Warrior) ─────────────────────────────────────────────────
+    case 'storm_bolt': {
+      const t = getEnemy();
+      if (t) {
+        const dmg = Math.max(1, effect - t.armor * 2);
+        t.hp -= dmg; t.stunTimer = Math.max(t.stunTimer, 2);
+        ft(t.pos, `⚡${Math.round(dmg)}`, '#ffff00');
+        vfxAt(t.pos, 'hit', 0.4);
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'war_stomp': {
+      for (const t of aoeEnemies(hero.pos, 130)) {
+        const dmg = Math.max(1, Math.round(effect * 0.6) - t.armor);
+        t.hp -= dmg; t.stunTimer = Math.max(t.stunTimer, 1.5);
+        ft(t.pos, `💥${Math.round(dmg)}`, '#ff8800');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      vfxAt(hero.pos, 'groundSlam', 0.8);
+      ft(hero.pos, '💥 WAR STOMP!', '#ff5500', 2);
+      break;
+    }
+    case 'avatar': {
+      hero.maxHp += effect; hero.hp = Math.min(hero.hp + effect, hero.maxHp);
+      ft(hero.pos, `🗡️ AVATAR! +${effect}HP`, '#ffd700', 2.5);
+      vfxAt(hero.pos, 'level_up', 1.0);
+      break;
+    }
+
+    // ─── Kanji (Mage) ─────────────────────────────────────────────────────
+    case 'arcane_blast': {
+      const t = getEnemy();
+      if (t) {
+        t.hp -= effect;
+        ft(t.pos, `✨${Math.round(effect)}`, '#aa88ff');
+        vfxAt(t.pos, 'hit', 0.4);
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'blizzard': {
+      const pos = targetPos ?? hero.pos;
+      gfxAt(pos, 110, Math.round(effect * 0.25), 4, 'blizzard');
+      for (const t of aoeEnemies(pos, 110)) t.slowTimer = Math.max(t.slowTimer, 3);
+      ft(pos, '❄️ BLIZZARD!', '#88aaff', 2);
+      vfxAt(pos, 'groundSlam', 0.8);
+      break;
+    }
+    case 'mass_teleport': {
+      const pos = targetPos ?? hero.pos;
+      for (const uid_ of state.selected) {
+        const u = state.units.get(uid_);
+        if (!u || u.state === 'dead') continue;
+        u.pos = { x: pos.x + (Math.random() - 0.5) * 60, y: pos.y + (Math.random() - 0.5) * 60 };
+        u.target = null; u.waypoints = [];
+      }
+      ft(hero.pos, '🌀 MASS TELEPORT!', '#aa88ff', 2);
+      vfxAt(pos, 'level_up', 0.8);
+      break;
+    }
+
+    // ─── Katan (Ranger) ───────────────────────────────────────────────────
+    case 'multishot': {
+      let count = 0;
+      for (const [, u] of state.units) {
+        if (u.faction === hero.faction || u.state === 'dead') continue;
+        if (dist(u.pos, hero.pos) > 350) continue;
+        fireProjectile(hero.pos, u.pos, u.id, effect);
+        if (++count >= rank + 2) break;
+      }
+      ft(hero.pos, '🏹 MULTISHOT!', '#88ff88', 1.5);
+      break;
+    }
+    case 'shadow_strike': {
+      const t = getEnemy();
+      if (t) {
+        const dmg = Math.max(1, Math.round(effect * 0.4) - t.armor);
+        t.hp -= dmg; t.slowTimer = Math.max(t.slowTimer, 4);
+        gfxAt(t.pos, 25, Math.round(effect * 0.15), 4, 'poison');
+        ft(t.pos, `🗡️${Math.round(dmg)} + poison`, '#aa5500');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'rain_of_arrows': {
+      const pos = targetPos ?? hero.pos;
+      for (const t of aoeEnemies(pos, 150)) {
+        const dmg = Math.max(1, Math.round(effect * 0.4) - t.armor);
+        t.hp -= dmg;
+        ft(t.pos, `🌧️${Math.round(dmg)}`, '#88ff00');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      ft(pos, '🌧️ RAIN OF ARROWS!', '#88ff00', 2);
+      vfxAt(pos, 'groundSlam', 1.0);
+      break;
+    }
+
+    // ─── Grum (Tank) ──────────────────────────────────────────────────────
+    case 'thunder_clap': {
+      for (const t of aoeEnemies(hero.pos, 130)) {
+        const dmg = Math.max(1, Math.round(effect * 0.7) - t.armor);
+        t.hp -= dmg; t.slowTimer = Math.max(t.slowTimer, 2.5);
+        ft(t.pos, `⚡${Math.round(dmg)}`, '#ffff00');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      ft(hero.pos, '⚡ THUNDER CLAP!', '#ffff00', 2);
+      vfxAt(hero.pos, 'groundSlam', 0.8);
+      break;
+    }
+
+    // ─── Gangblanc (Assassin) ─────────────────────────────────────────────
+    case 'backstab': {
+      const t = getEnemy();
+      if (t) {
+        const dx = hero.pos.x - t.pos.x, dy = hero.pos.y - t.pos.y;
+        const d = Math.hypot(dx, dy) || 1;
+        hero.pos = { x: t.pos.x + dx / d * 30, y: t.pos.y + dy / d * 30 };
+        t.hp -= effect;
+        ft(t.pos, `🔪${Math.round(effect)}`, '#ff3355');
+        vfxAt(t.pos, 'hit', 0.4);
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'smoke_bomb': {
+      const pos = targetPos ?? hero.pos;
+      for (const [, u] of state.units) {
+        if (u.faction !== hero.faction || u.state === 'dead') continue;
+        if (dist(u.pos, pos) <= 100) u.aoeTimer = Math.max(u.aoeTimer, effect);
+      }
+      ft(pos, '💨 SMOKE BOMB!', '#aaaaaa', 2);
+      break;
+    }
+    case 'death_mark': {
+      const t = getEnemy();
+      if (t) {
+        gfxAt(t.pos, 30, Math.round(effect / 6), 3, 'death_mark');
+        ft(t.pos, '💀 DEATH MARK!', '#ff0000', 2);
+      }
+      break;
+    }
+
+    // ─── Okomo (Monk) ─────────────────────────────────────────────────────
+    case 'spirit_punch': {
+      const t = getEnemy();
+      if (t) {
+        const dmg = Math.max(1, effect - t.armor);
+        t.hp -= dmg;
+        ft(t.pos, `👊${Math.round(dmg)}`, '#ff8800');
+        vfxAt(t.pos, 'hit', 0.4);
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'inner_fire': {
+      const t = getFriend() ?? hero;
+      t.armor += effect;
+      t.healTimer = Math.max(t.healTimer, 8);
+      ft(t.pos, `🔥+${effect} armor`, '#ff8800', 2);
+      vfxAt(t.pos, 'holy_heal', 0.6);
+      break;
+    }
+    case 'windwalk': {
+      hero.healTimer = Math.max(hero.healTimer, 5);
+      hero.aoeTimer = Math.max(hero.aoeTimer, effect / 100 + 3);
+      ft(hero.pos, '🌬️ WINDWALK!', '#88ffff', 2);
+      vfxAt(hero.pos, 'level_up', 0.6);
+      break;
+    }
+    case 'fury_of_spirits': {
+      for (const t of aoeEnemies(hero.pos, 160)) {
+        const dmg = Math.max(1, Math.round(effect * 0.5) - t.armor);
+        t.hp -= dmg;
+        ft(t.pos, `👻${Math.round(dmg)}`, '#aa88ff');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      ft(hero.pos, '👻 FURY OF SPIRITS!', '#aa88ff', 2);
+      vfxAt(hero.pos, 'groundSlam', 1.0);
+      break;
+    }
+
+    // ─── Zhinja (Ninja) ───────────────────────────────────────────────────
+    case 'shuriken_toss': {
+      const t = getEnemy();
+      if (t) {
+        const hitSet = new Set([hero.id, t.id]);
+        let prev: Unit = hero, cur: Unit = t;
+        for (let bounce = 0; bounce <= rank; bounce++) {
+          const dmg = Math.max(1, Math.round(effect * (1 - bounce * 0.2)));
+          fireProjectile(prev.pos, cur.pos, cur.id, dmg);
+          let next: Unit | null = null, minD = 200;
+          for (const [, u] of state.units) {
+            if (u.faction === hero.faction || u.state === 'dead' || hitSet.has(u.id)) continue;
+            const d2 = dist(u.pos, cur.pos);
+            if (d2 < minD) { minD = d2; next = u; }
+          }
+          if (!next) break;
+          hitSet.add(next.id); prev = cur; cur = next;
+        }
+        ft(t.pos, '🌀 SHURIKEN!', '#00ffff', 1.5);
+      }
+      break;
+    }
+    case 'shadow_step': {
+      const pos = targetPos ?? hero.pos;
+      hero.pos = { ...pos };
+      hero.target = null; hero.waypoints = [];
+      ft(pos, '👤 SHADOW STEP', '#8888ff', 1.5);
+      vfxAt(pos, 'level_up', 0.4);
+      break;
+    }
+    case 'wind_slash': {
+      const pos = targetPos ?? { x: hero.pos.x + 200, y: hero.pos.y };
+      const dx = pos.x - hero.pos.x, dy = pos.y - hero.pos.y;
+      const lineLen = Math.hypot(dx, dy) || 1;
+      const dir = { x: dx / lineLen, y: dy / lineLen };
+      for (const [, u] of state.units) {
+        if (u.faction === hero.faction || u.state === 'dead') continue;
+        const ax = u.pos.x - hero.pos.x, ay = u.pos.y - hero.pos.y;
+        const t = Math.max(0, Math.min(lineLen, ax * dir.x + ay * dir.y));
+        if (Math.hypot(hero.pos.x + dir.x * t - u.pos.x, hero.pos.y + dir.y * t - u.pos.y) > 60) continue;
+        const dmg = Math.max(1, effect - u.armor);
+        u.hp -= dmg;
+        ft(u.pos, `💨${Math.round(dmg)}`, '#88ffff');
+        if (u.hp <= 0) killUnit(state, u, hero);
+      }
+      ft(pos, '💨 WIND SLASH!', '#88ffff', 1.5);
+      break;
+    }
+    case 'shadow_clone': {
+      for (const t of aoeEnemies(hero.pos, 180)) {
+        const dmg = Math.max(1, 60 - t.armor);
+        t.hp -= dmg;
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      hero.hp = Math.min(hero.hp + 100, hero.maxHp);
+      ft(hero.pos, '🥷 SHADOW CLONE!', '#8888ff', 2);
+      vfxAt(hero.pos, 'level_up', 0.8);
+      break;
+    }
+
+    // ─── Borg (Berserker) ─────────────────────────────────────────────────
+    case 'raging_charge': {
+      const t = getEnemy();
+      if (t) {
+        const dx = t.pos.x - hero.pos.x, dy = t.pos.y - hero.pos.y;
+        const d = Math.hypot(dx, dy) || 1;
+        hero.pos = { x: t.pos.x - dx / d * 35, y: t.pos.y - dy / d * 35 };
+        const dmg = Math.max(1, effect - t.armor);
+        t.hp -= dmg; t.stunTimer = Math.max(t.stunTimer, 1.5);
+        ft(t.pos, `🐂${Math.round(dmg)}`, '#ff4400');
+        vfxAt(t.pos, 'hit', 0.4);
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      break;
+    }
+    case 'battle_roar': {
+      for (const [, u] of state.units) {
+        if (u.faction !== hero.faction || u.state === 'dead') continue;
+        if (dist(u.pos, hero.pos) > 160) continue;
+        u.healTimer = Math.max(u.healTimer, 8);
+        ft(u.pos, `🦁+${effect}%`, '#ff8800', 1.5);
+      }
+      ft(hero.pos, '🦁 BATTLE ROAR!', '#ff8800', 2);
+      vfxAt(hero.pos, 'groundSlam', 0.6);
+      break;
+    }
+    case 'apocalypse': {
+      for (const t of aoeEnemies(hero.pos, 200)) {
+        const dmg = Math.max(1, Math.round(effect) - t.armor * 2);
+        t.hp -= dmg;
+        ft(t.pos, `☠️${Math.round(dmg)}`, '#ff0000');
+        if (t.hp <= 0) killUnit(state, t, hero);
+      }
+      ft(hero.pos, '☠️ APOCALYPSE!', '#ff0000', 2.5);
+      vfxAt(hero.pos, 'groundSlam', 1.2);
+      break;
+    }
+  }
+
+  state.lastEventPos = { ...hero.pos };
   return true;
 }

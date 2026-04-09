@@ -15,7 +15,7 @@
 
 import { memo, type JSX } from 'react';
 import type { GameState, Unit, Building, UnitType, BuildingType } from '@/lib/rts-engine/types';
-import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS } from '@/lib/rts-engine/constants';
+import { UNIT_CONFIGS, BUILDING_CONFIGS, HERO_CONFIGS, ABILITY_DEFS } from '@/lib/rts-engine/constants';
 
 // ── Faction constants ───────────────────────────────────────────────────────────
 const UNIT_ICONS: Record<string, string> = {
@@ -44,6 +44,8 @@ interface GameHUDProps {
   onStop: () => void;
   onHold: () => void;
   onAttackMove: () => void;
+  onCastAbility: (heroId: string, abilityIdx: number) => void;
+  onRankUpAbility: (heroId: string, abilityIdx: number) => void;
   buildMode: BuildingType | null;
   attackMoveMode: boolean;
   setBuildMode: (bt: BuildingType | null) => void;
@@ -112,12 +114,150 @@ function HeroPortraits({ state }: { state: GameState }): JSX.Element | null {
   );
 }
 
+// ── Hero Ability Panel ──────────────────────────────────────────────────────────
+const ABILITY_KEYS = ['Q', 'W', 'E', 'R'] as const;
+
+function HeroAbilityPanel({ hero, state, onCast, onRankUp }: {
+  hero: Unit;
+  state: GameState;
+  onCast: (idx: number) => void;
+  onRankUp: (idx: number) => void;
+}): JSX.Element | null {
+  if (!hero.isHero || hero.abilities.length === 0) return null;
+
+  return (
+    <div className= "mt-2 border-t border-zinc-700/50 pt-2" >
+    {
+      hero.abilityPoints > 0 && (
+        <div className="text-[9px] font-bold text-amber-400 mb-1 text-center animate-pulse">
+          ✨ { hero.abilityPoints } ability point{ hero.abilityPoints > 1 ? 's' : '' } available!
+    </div>
+      )
+}
+<div className="grid grid-cols-4 gap-1" >
+{
+  hero.abilities.slice(0, 4).map((aState, idx) => {
+    const def = ABILITY_DEFS[aState.abilityId];
+    if (!def) return null;
+    const isPassive = def.cooldown === 0 && def.manaCost === 0;
+    const isLocked = aState.rank === 0;
+    const onCooldown = aState.cooldownRemaining > 0;
+    const noMana = hero.mana < def.manaCost;
+    const levelLocked = hero.heroLevel < def.levelRequired || (def.isUltimate && hero.heroLevel < 6);
+    const canRankUp = hero.abilityPoints > 0 && aState.rank < def.maxRank && !levelLocked;
+    const disabled = isPassive || isLocked || (onCooldown && !isPassive) || noMana;
+
+    return (
+      <div key= { aState.abilityId } className = "relative" >
+        <button
+                onClick={ () => !isPassive && !isLocked && !onCooldown && !noMana && onCast(idx) }
+    title = {`${def.name}${def.description ? ' — ' + def.description : ''}${def.manaCost > 0 ? ` (${def.manaCost} mana)` : ''}${def.cooldown > 0 ? ` [${def.cooldown}s CD]` : ''}`
+  }
+                className = {`w-full aspect-square rounded border flex flex-col items-center justify-center transition-all relative overflow-hidden ${isLocked || levelLocked
+      ? 'bg-zinc-900 border-zinc-800 opacity-40'
+      : isPassive
+        ? 'bg-emerald-900/40 border-emerald-700/60 cursor-default'
+        : onCooldown
+          ? 'bg-zinc-800 border-zinc-600 opacity-60 cursor-not-allowed'
+          : noMana
+            ? 'bg-zinc-800 border-blue-900/50 opacity-60 cursor-not-allowed'
+            : 'bg-zinc-800 border-amber-600/50 hover:bg-zinc-700 hover:border-amber-500 cursor-pointer'
+      }`}
+  >
+  {/* Cooldown overlay */ }
+{
+  onCooldown && !isPassive && def.cooldown > 0 && (
+    <div
+                    className="absolute inset-0 bg-black/60 flex items-end justify-center pb-0.5"
+  style = {{ clipPath: `inset(${((1 - aState.cooldownRemaining / def.cooldown) * 100).toFixed(0)}% 0 0 0)` }
+}
+                  >
+  <span className="text-[8px] font-bold text-white" > { Math.ceil(aState.cooldownRemaining) } </span>
+    </div>
+                )}
+<span className="text-base leading-none" > { def.icon } </span>
+{/* Rank dots */ }
+<div className="flex gap-px mt-0.5" >
+  {
+    Array.from({ length: def.maxRank }).map((_, r) => (
+      <div key= { r } className = {`w-1 h-1 rounded-full ${r < aState.rank ? 'bg-amber-400' : 'bg-zinc-600'}`} />
+                  ))}
+</div>
+  </button>
+{/* Key label */ }
+<div className="absolute top-0.5 left-0.5 text-[7px] font-bold text-zinc-400" > { ABILITY_KEYS[idx]} </div>
+{/* Passive indicator */ }
+{
+  isPassive && aState.rank > 0 && (
+    <div className="absolute bottom-0.5 right-0.5 text-[7px] text-emerald-400" > P </div>
+              )
+}
+{/* Rank-up button */ }
+{
+  canRankUp && (
+    <button
+                  onClick={ e => { e.stopPropagation(); onRankUp(idx); } }
+  className = "absolute -top-1 -right-1 w-4 h-4 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center text-[8px] font-black text-zinc-900 z-10 shadow"
+    > +</button>
+              )
+}
+{/* Cooldown text below */ }
+{
+  !isLocked && !levelLocked && (
+    <div className="text-[7px] text-center text-zinc-500 truncate leading-tight mt-px px-0.5" >
+      { isPassive? 'PASSIVE': onCooldown ? `${Math.ceil(aState.cooldownRemaining)}s` : def.name.slice(0, 8) }
+      </div>
+              )
+}
+{
+  levelLocked && (
+    <div className="text-[7px] text-center text-zinc-600 leading-tight mt-px" > Lv{ def.isUltimate ? 6 : def.levelRequired } </div>
+              )
+}
+</div>
+          );
+        })}
+</div>
+  </div>
+  );
+}
+
+// ── Dead Hero Revival Panel ─────────────────────────────────────────────────────
+function DeadHeroPanel({ state }: { state: GameState }): JSX.Element | null {
+  const dead = state.deadHeroes;
+  if (dead.length === 0) return null;
+
+  return (
+    <div className= "absolute top-28 left-4 flex flex-col gap-1 z-30 pointer-events-none" >
+    {
+      dead.map(dh => {
+        const hero = state.units.get(dh.unitId);
+        if (!hero) return null;
+        const heroCfg = HERO_CONFIGS.find(h => h.type === hero.type);
+        return (
+          <div key= { dh.unitId } className = "bg-red-950/85 border border-red-800/60 rounded-md px-2.5 py-1.5 text-[10px]" >
+            <div className="text-red-400 font-bold" > { heroCfg?.name ?? hero.type
+      } 💀</div>
+      < div className = "text-zinc-400" > Reviving in { Math.ceil(dh.reviveTimer) }s{ dh.reviveCost > 0 ? ` (${dh.reviveCost}g)` : '' } </div>
+      < div className = "h-0.5 bg-zinc-700 mt-1 rounded-full overflow-hidden" >
+      <div className="h-full bg-red-500 rounded-full transition-all"
+                style = {{ width: `${Math.max(0, 100 - (dh.reviveTimer / (HERO_CONFIGS.find(h => h.type === hero.type)?.reviveTime ?? 55)) * 100)}%` }} />
+    </div>
+    </div>
+        );
+})}
+</div>
+  );
+}
+
 // ── Selection Panel (Bottom-Left) ───────────────────────────────────────────────
 // Not memoized — receives mutable state ref, must re-render on tick.
-function SelectionPanel({ state, onTrain, onSummonHero }: {
+function SelectionPanel({ state, onTrain, onSummonHero, onCastAbility, onRankUpAbility }: {
   state: GameState;
   onTrain: (buildingId: string, unitType: UnitType) => void;
   onSummonHero: (heroType: UnitType) => void;
+  onCastAbility: (heroId: string, abilityIdx: number) => void;
+  onRankUpAbility: (heroId: string, abilityIdx: number) => void;
 }) {
   const selectedUnits: Unit[] = [];
   for (const uid of state.selected) {
@@ -174,6 +314,17 @@ function SelectionPanel({ state, onTrain, onSummonHero }: {
                 ))}
               </div>
             )}
+{/* Hero ability panel */ }
+{
+  u.isHero && (
+    <HeroAbilityPanel
+                hero={ u }
+  state = { state }
+  onCast = { idx => onCastAbility(u.id, idx) }
+  onRankUp = { idx => onRankUpAbility(u.id, idx) }
+    />
+            )
+}
           </div>
         );
       })()}
@@ -323,6 +474,7 @@ const BuildMenu = memo(({ open, onBuild, onClose }: { open: boolean; onBuild: (b
 // ── Main HUD Export ─────────────────────────────────────────────────────────────
 export function GameHUD({
   state, tick: _tick, onTrain, onSummonHero, onBuild, onStop, onHold, onAttackMove,
+  onCastAbility, onRankUpAbility,
   buildMode, attackMoveMode, setBuildMode, buildMenuOpen, setBuildMenuOpen,
 }: GameHUDProps) {
   if (!state) return null;
@@ -331,7 +483,8 @@ export function GameHUD({
     <div className="absolute inset-0 pointer-events-none text-white z-20">
       <ResourceBar state={state} />
       <HeroPortraits state={state} />
-      <SelectionPanel state={state} onTrain={onTrain} onSummonHero={onSummonHero} />
+    <DeadHeroPanel state={ state } />
+      < SelectionPanel state = { state } onTrain = { onTrain } onSummonHero = { onSummonHero } onCastAbility = { onCastAbility } onRankUpAbility = { onRankUpAbility } />
       <ActionBar onStop={onStop} onHold={onHold} onAttackMove={onAttackMove} />
       <BuildMenu open={buildMenuOpen} onBuild={onBuild} onClose={() => setBuildMenuOpen(false)} />
 

@@ -9,16 +9,17 @@ import {
   commandMove, commandAttack, commandHarvest, commandBuild,
   commandTrain, commandSummonHero, commandUpgradeTownHall,
   commandStop, commandHold, commandAttackMove,
+  commandCastAbility, commandRankUpAbility,
 } from '@/lib/rts-engine/engine';
 import { renderGame } from '@/lib/rts-engine/renderer';
 import { MAPS } from '@/lib/rts-engine/maps';
 import { fxController } from '@/lib/rts-engine/fx-controller';
-import { BUILDING_CONFIGS } from '@/lib/rts-engine/constants';
+import { BUILDING_CONFIGS, ABILITY_DEFS } from '@/lib/rts-engine/constants';
 import { spriteLoader } from '@/lib/rts-engine/sprite-loader';
 import { GameHUD } from '@/components/game-hud/GameHUD';
 import type { GameState, Vec2, BuildingType, UnitType } from '@/lib/rts-engine/types';
 
-type GamePhase = 'menu' | 'loading' | 'playing';
+type GamePhase = 'menu' | 'loading' | 'playing' | 'paused';
 
 const EDGE_SCROLL_ZONE = 30;
 const EDGE_SCROLL_SPEED = 12;
@@ -76,8 +77,10 @@ export function GameCanvas() {
   const [gameResult, setGameResult] = useState<'playing' | 'won' | 'lost'>('playing');
   const [selectedMap, setSelectedMap] = useState(0);
   const [selectedFaction, setSelectedFaction] = useState<'kingdom' | 'legion'>('kingdom');
+  const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
   const [buildMode, setBuildMode] = useState<BuildingType | null>(null);
   const [attackMoveMode, setAttackMoveMode] = useState(false);
+  const [abilityMode, setAbilityMode] = useState<{ heroId: string; abilityIdx: number } | null>(null);
   const [buildMenuOpen, setBuildMenuOpen] = useState(false);
   const [fps, setFps] = useState(0);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -112,11 +115,25 @@ export function GameCanvas() {
     setLoadProgress(0);
     const mapDef = MAPS[selectedMap];
     stateRef.current = createInitialState(mapDef, selectedFaction);
+    // Apply difficulty modifiers
+    if (stateRef.current) {
+      const ai = stateRef.current.aiState;
+      if (difficulty === 'easy') {
+        ai.aiAttackInterval = (ai.aiAttackInterval ?? 90) * 2;
+        stateRef.current.enemyResources.gold = Math.round(stateRef.current.enemyResources.gold * 0.6);
+        stateRef.current.enemyResources.wood = Math.round(stateRef.current.enemyResources.wood * 0.6);
+      } else if (difficulty === 'hard') {
+        ai.aiAttackInterval = (ai.aiAttackInterval ?? 90) * 0.55;
+        stateRef.current.enemyResources.gold += 400;
+        stateRef.current.enemyResources.wood += 150;
+      }
+    }
     lastTimeRef.current = performance.now();
     setBuildMode(null);
     setAttackMoveMode(false);
+    setAbilityMode(null);
     setBuildMenuOpen(false);
-  }, [selectedMap, selectedFaction]);
+  }, [selectedMap, selectedFaction, difficulty]);
 
   // ── Loading phase: poll progress until enough assets are loaded ────────────
   useEffect(() => {
@@ -232,6 +249,23 @@ export function GameCanvas() {
         return;
       }
       if (attackMoveMode) { commandAttackMove(state, world); setAttackMoveMode(false); return; }
+      if (abilityMode) {
+        const { heroId, abilityIdx } = abilityMode;
+        const hero = state.units.get(heroId);
+        if (hero) {
+          // Check if clicking a unit target
+          let targetUnitId: string | undefined;
+          for (const [, u] of state.units) {
+            if (u.state !== 'dead' && Math.hypot(u.pos.x - world.x, u.pos.y - world.y) < 24) {
+              targetUnitId = u.id;
+              break;
+            }
+          }
+          commandCastAbility(state, heroId, abilityIdx, world, targetUnitId);
+        }
+        setAbilityMode(null);
+        return;
+      }
       if (buildMode) { commandBuild(state, buildMode, world); setBuildMode(null); setBuildMenuOpen(false); return; }
       state.dragStart = { ...world };
       state.dragEnd = { ...world };
@@ -252,7 +286,7 @@ export function GameCanvas() {
       }
       commandMove(state, world);
     }
-  }, [phase, buildMode, attackMoveMode, screenToWorld, isMinimapClick]);
+  }, [phase, buildMode, attackMoveMode, abilityMode, screenToWorld, isMinimapClick]);
 
   // ── Mouse move ─────────────────────────────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -352,7 +386,17 @@ export function GameCanvas() {
       if (!stateRef.current) return;
       const state = stateRef.current;
 
-      if (e.key === 'Escape') { setBuildMode(null); setAttackMoveMode(false); setBuildMenuOpen(false); return; }
+      if (e.key === 'Escape') {
+        if (buildMode || attackMoveMode || abilityMode) {
+          setBuildMode(null); setAttackMoveMode(false); setAbilityMode(null); setBuildMenuOpen(false);
+        } else if (phase === 'playing') {
+          setPhase('paused');
+        } else if (phase === 'paused') {
+          setPhase('playing');
+        }
+        return;
+      }
+      if (phase === 'paused') return;
 
       // Build menu sub-keys
       if (buildMenuOpen) {
@@ -373,6 +417,17 @@ export function GameCanvas() {
         }
       }
       if (e.key.toLowerCase() === 'u') { commandUpgradeTownHall(state); return; }
+      // Q/W/E/R — cast hero abilities
+      if (!e.ctrlKey && 'qwer'.includes(e.key.toLowerCase()) && e.key.length === 1) {
+        const abilityIdx = 'qwer'.indexOf(e.key.toLowerCase());
+        const heroes = [...state.selected].map(id => state.units.get(id)).filter(
+          (u): u is NonNullable<typeof u> => !!(u?.isHero && u.state !== 'dead')
+        );
+        if (heroes.length > 0) {
+          handleHUDCastAbility(heroes[0].id, abilityIdx);
+        }
+        return;
+      }
 
       // Ctrl+1-9 assign group
       if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
@@ -439,7 +494,7 @@ export function GameCanvas() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); clearInterval(panInterval); };
-  }, [phase, buildMenuOpen]);
+  }, [phase, buildMenuOpen, buildMode, attackMoveMode, abilityMode, handleHUDCastAbility]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => e.preventDefault(), []);
 
@@ -467,6 +522,28 @@ export function GameCanvas() {
 
   const handleHUDAttackMove = useCallback(() => {
     setAttackMoveMode(true);
+  }, []);
+
+  const handleHUDCastAbility = useCallback((heroId: string, abilityIdx: number) => {
+    if (!stateRef.current) return;
+    const state = stateRef.current;
+    const hero = state.units.get(heroId);
+    if (!hero) return;
+    const ab = hero.abilities[abilityIdx];
+    if (!ab) return;
+    const def = ABILITY_DEFS[ab.abilityId];
+    if (!def || ab.rank === 0) return;
+    // Abilities that need a target → enter ability targeting mode
+    if (def.targetType === 'point' || def.targetType === 'unit') {
+      setAbilityMode({ heroId, abilityIdx });
+    } else {
+      // Self / no-target — cast immediately
+      commandCastAbility(state, heroId, abilityIdx);
+    }
+  }, []);
+
+  const handleHUDRankUpAbility = useCallback((heroId: string, abilityIdx: number) => {
+    if (stateRef.current) commandRankUpAbility(stateRef.current, heroId, abilityIdx);
   }, []);
 
   const handleMenuReturn = useCallback(() => {
@@ -554,6 +631,19 @@ export function GameCanvas() {
           ))}
         </div>
 
+{/* Difficulty picker */ }
+<div className="flex gap-2 mb-5" >
+  {(['easy', 'normal', 'hard'] as const).map(d => (
+    <button key= { d } onClick = {() => setDifficulty(d)}
+    className = {`px-5 py-2 rounded-xl text-sm font-bold border-2 transition-all ${difficulty === d
+        ? d === 'easy' ? 'bg-green-700/80 border-green-400 text-white' : d === 'normal' ? 'bg-amber-700/80 border-amber-400 text-white' : 'bg-red-700/80 border-red-400 text-white'
+        : 'bg-zinc-800/60 border-zinc-600/50 text-zinc-400 hover:bg-zinc-700/60'
+      }`}>
+        { d === 'easy' ? '🟢 Easy' : d === 'normal' ? '🟡 Normal' : '🔴 Hard'}
+    </button>
+  ))}
+</div>
+
         {/* Start button — large, golden */}
         <Button size="lg" onClick={startGame}
           className="bg-gradient-to-b from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-lg px-10 py-3 font-bold shadow-xl shadow-green-600/30 border border-green-400/30 rounded-xl">
@@ -611,7 +701,7 @@ export function GameCanvas() {
   <div
         ref={ containerRef }
 className = "absolute inset-0 overflow-hidden"
-style = {{ cursor: buildMode || attackMoveMode ? 'crosshair' : 'default' }}
+style = {{ cursor: buildMode || attackMoveMode || abilityMode ? 'crosshair' : 'default' }}
       >
   <canvas
           ref={ canvasRef }
@@ -636,12 +726,37 @@ tick = { hudTick }
         onStop={handleHUDStop}
         onHold={handleHUDHold}
         onAttackMove={handleHUDAttackMove}
+onCastAbility = { handleHUDCastAbility }
+onRankUpAbility = { handleHUDRankUpAbility }
         buildMode={buildMode}
         attackMoveMode={attackMoveMode}
         setBuildMode={setBuildMode}
         buildMenuOpen={buildMenuOpen}
         setBuildMenuOpen={setBuildMenuOpen}
       />
+
+  {/* Ability targeting mode indicator */ }
+{
+  abilityMode && (
+    <div className="absolute top-11 left-1/2 -translate-x-1/2 bg-purple-700/90 text-white text-xs font-bold px-4 py-1.5 rounded-lg pointer-events-auto z-30" >
+      Click target for ability — ESC cancel
+        </div>
+      )
+}
+
+{/* Pause overlay */ }
+{
+  phase === 'paused' && (
+    <div className="absolute inset-0 bg-black/70 z-50 flex items-center justify-center pointer-events-auto" >
+      <div className="bg-zinc-900 border border-zinc-600 rounded-2xl p-8 flex flex-col gap-3 items-center min-w-52 shadow-2xl" >
+        <h2 className="text-2xl font-black text-amber-400" >⏸ PAUSED </h2>
+          < Button className = "w-full" onClick = {() => setPhase('playing')
+}>▶ Resume </Button>
+  < Button variant = "outline" className = "w-full" onClick = { startGame } >↺ Restart </Button>
+    < Button variant = "ghost" className = "w-full" onClick = { handleMenuReturn } >🏠 Main Menu </Button>
+      </div>
+      </div>
+      )}
 
   {/* Victory / Defeat overlay */ }
   < GameOverlay result = { gameResult } onReturn = { handleMenuReturn } />
