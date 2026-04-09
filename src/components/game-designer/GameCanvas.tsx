@@ -376,9 +376,30 @@ export function GameCanvas() {
     stateRef.current.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, stateRef.current.zoom * delta));
   }, []);
 
+  // ── Ability cast / rank-up (declared before keyboard effect to satisfy dep array) ─
+  const handleHUDCastAbility = useCallback((heroId: string, abilityIdx: number) => {
+    if (!stateRef.current) return;
+    const state = stateRef.current;
+    const hero = state.units.get(heroId);
+    if (!hero) return;
+    const ab = hero.abilities[abilityIdx];
+    if (!ab) return;
+    const def = ABILITY_DEFS[ab.abilityId];
+    if (!def || ab.rank === 0) return;
+    if (def.targetType === 'point' || def.targetType === 'unit') {
+      setAbilityMode({ heroId, abilityIdx });
+    } else {
+      commandCastAbility(state, heroId, abilityIdx);
+    }
+  }, []);
+
+  const handleHUDRankUpAbility = useCallback((heroId: string, abilityIdx: number) => {
+    if (stateRef.current) commandRankUpAbility(stateRef.current, heroId, abilityIdx);
+  }, []);
+
   // ── Keyboard ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (phase !== 'playing') return;
+    if (phase !== 'playing' && phase !== 'paused') return;
     const keys = new Set<string>();
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -389,14 +410,13 @@ export function GameCanvas() {
       if (e.key === 'Escape') {
         if (buildMode || attackMoveMode || abilityMode) {
           setBuildMode(null); setAttackMoveMode(false); setAbilityMode(null); setBuildMenuOpen(false);
-        } else if (phase === 'playing') {
-          setPhase('paused');
-        } else if (phase === 'paused') {
-          setPhase('playing');
+        } else {
+          // Toggle pause — use functional update to avoid stale-closure type issues
+          setPhase(p => p === 'paused' ? 'playing' : 'paused');
         }
         return;
       }
-      if (phase === 'paused') return;
+      if (phase !== 'playing') return; // drop all other keys while paused
 
       // Build menu sub-keys
       if (buildMenuOpen) {
@@ -522,28 +542,6 @@ export function GameCanvas() {
 
   const handleHUDAttackMove = useCallback(() => {
     setAttackMoveMode(true);
-  }, []);
-
-  const handleHUDCastAbility = useCallback((heroId: string, abilityIdx: number) => {
-    if (!stateRef.current) return;
-    const state = stateRef.current;
-    const hero = state.units.get(heroId);
-    if (!hero) return;
-    const ab = hero.abilities[abilityIdx];
-    if (!ab) return;
-    const def = ABILITY_DEFS[ab.abilityId];
-    if (!def || ab.rank === 0) return;
-    // Abilities that need a target → enter ability targeting mode
-    if (def.targetType === 'point' || def.targetType === 'unit') {
-      setAbilityMode({ heroId, abilityIdx });
-    } else {
-      // Self / no-target — cast immediately
-      commandCastAbility(state, heroId, abilityIdx);
-    }
-  }, []);
-
-  const handleHUDRankUpAbility = useCallback((heroId: string, abilityIdx: number) => {
-    if (stateRef.current) commandRankUpAbility(stateRef.current, heroId, abilityIdx);
   }, []);
 
   const handleMenuReturn = useCallback(() => {

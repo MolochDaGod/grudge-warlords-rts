@@ -312,7 +312,7 @@ export function updateGame(state: GameState, dt: number): void {
     if (unit.aoeTimer > 0) unit.aoeTimer = Math.max(0, unit.aoeTimer - dt);
 
     // Hero passive auras
-    if (unit.isHero && unit.state !== 'dead') {
+    if (unit.isHero) {
       // Brilliance Aura (Kanji) — mana regen for nearby allies
       const brillianceAb = unit.abilities.find(a => a.abilityId === 'brilliance_aura' && a.rank > 0);
       if (brillianceAb) {
@@ -1607,6 +1607,8 @@ export function commandCastAbility(
   aState.cooldownRemaining = def.cooldown;
   const rank = Math.max(1, aState.rank);
   const effect = def.effectPerRank[rank - 1] ?? def.effectPerRank[0] ?? 0;
+  // Capture faction before closures so TypeScript narrowing holds
+  const heroFaction = hero.faction;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function ft(pos: Vec2, text: string, color: string, maxAge = 1.5): void {
@@ -1618,12 +1620,12 @@ export function commandCastAbility(
   }
   function gfxAt(pos: Vec2, radius: number, dotDmg: number, duration: number, vfxType: string): void {
     const gid = uid();
-    state.groundEffects.set(gid, { id: gid, pos: { ...pos }, radius, vfxType, age: 0, duration, dotDamage: dotDmg, dotInterval: 0.5, dotTimer: 0, casterFaction: hero.faction });
+    state.groundEffects.set(gid, { id: gid, pos: { ...pos }, radius, vfxType, age: 0, duration, dotDamage: dotDmg, dotInterval: 0.5, dotTimer: 0, casterFaction: heroFaction });
   }
   function aoeEnemies(center: Vec2, radius: number): Unit[] {
     const out: Unit[] = [];
     for (const [, u] of state.units) {
-      if (u.faction === hero.faction || u.state === 'dead') continue;
+      if (u.faction === heroFaction || u.state === 'dead') continue;
       if (dist(u.pos, center) <= radius) out.push(u);
     }
     return out;
@@ -1631,18 +1633,18 @@ export function commandCastAbility(
   function getEnemy(): Unit | null {
     if (!targetUnitId) return null;
     const t = state.units.get(targetUnitId);
-    return (t && t.state !== 'dead' && t.faction !== hero.faction) ? t : null;
+    return (t && t.state !== 'dead' && t.faction !== heroFaction) ? t : null;
   }
   function getFriend(): Unit | null {
     if (!targetUnitId) return null;
     const t = state.units.get(targetUnitId);
-    return (t && t.state !== 'dead' && t.faction === hero.faction) ? t : null;
+    return (t && t.state !== 'dead' && t.faction === heroFaction) ? t : null;
   }
   function fireProjectile(from: Vec2, to: Vec2, targetId: string, dmg: number): void {
     const dx = to.x - from.x, dy = to.y - from.y;
     const d = Math.hypot(dx, dy) || 1;
     const pid = uid();
-    state.projectiles.set(pid, { id: pid, pos: { ...from }, vel: { x: dx / d * 420, y: dy / d * 420 }, targetId, damage: dmg, faction: hero.faction, projectileStyle: 'arrow' });
+    state.projectiles.set(pid, { id: pid, pos: { ...from }, vel: { x: dx / d * 420, y: dy / d * 420 }, targetId, damage: dmg, faction: heroFaction, projectileStyle: 'arrow' });
   }
 
   // ── Ability effects ────────────────────────────────────────────────────────
