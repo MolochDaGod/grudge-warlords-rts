@@ -288,22 +288,24 @@ export function getBuildingSprite(faction: 'blue' | 'red' | 'neutral', type: Bui
   // Actual PNG dimensions (measured from image headers):
   //   Castle.png   = 320×256   Barracks.png = 192×256   Archery.png  = 192×256
   //   Tower.png    = 128×256   House1/2/3   = 128×192   Monastery    = 192×320
+  // Available PNGs per faction: Castle.png, Barracks.png, House1.png, Tower.png
+  // Missing files (Archery, Monastery, House2, House3) fall back to Barracks/House1
   switch (type) {
     case 'castle': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
     case 'keep': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 128, displayH: 102 };
     case 'fortress': return { sheet: bldPath(f, 'Castle'), sx: 0, sy: 0, sw: 320, sh: 256, displayW: 140, displayH: 112 };
     case 'barracks': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
-    case 'archery': return { sheet: bldPath(f, 'Archery'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
-    case 'chapel': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
-    case 'sanctum': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
+    case 'archery': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
+    case 'chapel': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
+    case 'sanctum': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
     case 'tower': return { sheet: bldPath(f, 'Tower'), sx: 0, sy: 0, sw: 128, sh: 256, displayW: 64, displayH: 96 };
     case 'house': return { sheet: bldPath(f, 'House1'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 48, displayH: 64 };
-    case 'market': return { sheet: bldPath(f, 'House2'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
-    case 'tavern': return { sheet: bldPath(f, 'House3'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
+    case 'market': return { sheet: bldPath(f, 'House1'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
+    case 'tavern': return { sheet: bldPath(f, 'House1'), sx: 0, sy: 0, sw: 128, sh: 192, displayW: 64, displayH: 64 };
     case 'workshop': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 64 };
     case 'blacksmith': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 64, displayH: 64 };
-    case 'altar': return { sheet: bldPath(f, 'Monastery'), sx: 0, sy: 0, sw: 192, sh: 320, displayW: 96, displayH: 96 };
-    case 'docks': return { sheet: bldPath(f, 'Archery'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 64 };
+    case 'altar': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 96 };
+    case 'docks': return { sheet: bldPath(f, 'Barracks'), sx: 0, sy: 0, sw: 192, sh: 256, displayW: 96, displayH: 64 };
     case 'goldmine': return null; // Rendered procedurally
     default: return null;
   }
@@ -339,17 +341,14 @@ const _TS_SPRITES: Record<'warrior' | 'archer' | 'monk', TsUnitMapping> = {
   monk: { blue: _tsPaths('monk', 'blue'), red: _tsPaths('monk', 'red'), frameW: 192, frameH: 192, idleFrames: 6, runFrames: 4, attackFrames: 11 },
 };
 
-/** Maps unit configKey → which tiny-swords local sprite type to use */
+/** Maps unit configKey → which tiny-swords local sprite type to use.
+ *  Only maps types that have real PNGs under public/sprites/tiny-swords/units/.
+ *  All others fall through to the ObjectStore CDN SPRITE_MAP below. */
 const _TS_UNIT_MAP: Partial<Record<string, 'warrior' | 'archer' | 'monk'>> = {
-  // Kingdom workers & melee
-  pawn: 'warrior', farmer: 'monk',
-  swordsman: 'warrior', axeman: 'warrior', knight: 'warrior', assasin: 'warrior',
-  bowman: 'archer', musketeer: 'archer',
-  mage: 'monk',
-  // Legion workers & melee
-  orcPawn: 'warrior', orcWarrior: 'warrior', orcSpearman: 'warrior',
-  orcArcher: 'archer',
-  orcHealer: 'monk', orcMage: 'monk',
+  // Only archer, lancer, and monk directories exist locally.
+  // 'warrior' directory does NOT exist — those units use CDN sprites instead.
+  bowman: 'archer', musketeer: 'archer', orcArcher: 'archer',
+  farmer: 'monk', mage: 'monk', orcHealer: 'monk', orcMage: 'monk',
 };
 
 /**

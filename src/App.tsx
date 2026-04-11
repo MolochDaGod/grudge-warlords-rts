@@ -1,6 +1,7 @@
 import { Route, Switch, Redirect } from 'wouter';
 import { Layout } from './components/Layout';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 
 // Each page is its own dedicated component — no shared monolithic page
 const HomePage = lazy(() => import('./pages/home'));
@@ -19,8 +20,38 @@ function Loading() {
   );
 }
 
+// ── Error Boundary — catches runtime crashes so users see a message, not a blank page ──
+interface EBState { hasError: boolean; error: Error | null }
+class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  state: EBState = { hasError: false, error: null };
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('[Grudge Warlords] Uncaught error:', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 text-white p-8">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-red-400 mb-2">Something went wrong</h1>
+          <p className="text-zinc-400 text-sm mb-4 max-w-md text-center">
+            {this.state.error?.message ?? 'Unknown error'}
+          </p>
+          <pre className="text-xs text-zinc-500 bg-zinc-900 rounded p-3 max-w-lg overflow-auto max-h-48 mb-4">
+            {this.state.error?.stack?.slice(0, 600)}
+          </pre>
+          <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/'; }}
+            className="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-bold">
+            Return Home
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
+    <ErrorBoundary>
     <Suspense fallback={<Loading />}>
       <Switch>
         {/* Home */}
@@ -75,5 +106,6 @@ export default function App() {
         </Route>
       </Switch>
     </Suspense>
+    </ErrorBoundary>
   );
 }
