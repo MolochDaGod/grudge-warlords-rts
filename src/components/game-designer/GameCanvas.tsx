@@ -88,6 +88,46 @@ export function GameCanvas() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [hudTick, setHudTick] = useState(0);
 
+  // ── PostMessage bridge — receives commands from GDevelop parent frame ─────
+  useEffect(() => {
+    const ALLOWED_ORIGINS = [
+      'https://gdevelop-assistant.vercel.app',
+      'https://gdevelop-assistant-full.vercel.app',
+      location.origin, // allow same-origin for dev
+    ];
+    const handler = (e: MessageEvent) => {
+      if (!ALLOWED_ORIGINS.includes(e.origin)) return;
+      const { type, ...payload } = e.data ?? {};
+      switch (type) {
+        case 'asset:override-sprite': {
+          // Preload a replacement sprite URL: { unitType, action, src }
+          const { src } = payload as { src?: string };
+          if (src) spriteLoader.preload([src]);
+          break;
+        }
+        case 'game:set-faction':
+          if (payload.faction === 'kingdom' || payload.faction === 'legion') {
+            setSelectedFaction(payload.faction);
+          }
+          break;
+        case 'game:set-map': {
+          const idx = Number(payload.mapIndex);
+          if (!isNaN(idx) && idx >= 0 && idx < MAPS.length) setSelectedMap(idx);
+          break;
+        }
+        case 'game:start':
+          startGame();
+          break;
+      }
+    };
+    window.addEventListener('message', handler);
+    // Notify parent we're ready
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'rts:ready' }, '*');
+    }
+    return () => window.removeEventListener('message', handler);
+  }, [startGame]);
+
   // ── Responsive canvas sizing ──────────────────────────────────────────────
   useEffect(() => {
     const container = containerRef.current;
