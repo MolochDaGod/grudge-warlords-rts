@@ -3,11 +3,14 @@ import type { Island, CreepCamp, UnitType } from './types';
 export interface ResourceDef { type: 'tree' | 'goldmine'; pos: { x: number; y: number }; amount?: number; }
 export interface UnitDef { faction: 'blue' | 'red'; type: UnitType; pos: { x: number; y: number }; }
 
+export type MapMode = '1v1' | 'ffa' | 'boss';
+
 export interface MapDef {
   id: string;
   name: string;
   subtitle: string;
   description: string;
+  mode: MapMode;
   worldW: number;
   worldH: number;
   islands: Omit<Island, never>[];
@@ -28,6 +31,7 @@ export const MAPS: MapDef[] = [
     name: 'Skirmish',
     subtitle: '4-Island Clash',
     description: 'A fast duel. Two contested islands between home bases — creep camps guard the gold mines. First to tier 3 wins.',
+    mode: '1v1',
     worldW: 3550, worldH: 1100,
     thumbnail: '⚔️',
     islands: [
@@ -102,6 +106,7 @@ export const MAPS: MapDef[] = [
     name: 'Archipelago',
     subtitle: '6-Island War',
     description: 'Six islands with a rich bonus island reachable from the center. Control expansions, clear creep camps, and scale to late game.',
+    mode: '1v1',
     worldW: 5100, worldH: 2100,
     thumbnail: '🌊',
     islands: [
@@ -186,6 +191,7 @@ export const MAPS: MapDef[] = [
     name: "Dragon's Teeth",
     subtitle: '3-Island Duel',
     description: 'A narrow map with one contested center island. Rush for the gold mine or be overrun. Dragon creep guards the best loot.',
+    mode: '1v1',
     worldW: 2800, worldH: 1200,
     thumbnail: '🐉',
     islands: [
@@ -244,6 +250,7 @@ export const MAPS: MapDef[] = [
     name: 'Pirate Cove',
     subtitle: '8-Island War',
     description: 'A sprawling archipelago with pirates guarding treasure islands. Multiple expansion paths, flanking routes, and a pirate captain boss on the center island.',
+    mode: 'ffa',
     worldW: 5600, worldH: 2800,
     thumbnail: '⚓',
     islands: [
@@ -315,6 +322,7 @@ export const MAPS: MapDef[] = [
     name: 'Grudge Gauntlet',
     subtitle: 'Boss Rush',
     description: 'Clear increasingly dangerous creep camps to reach the enemy. Each island has a boss guarding it. Heroes are essential — level up fast or die.',
+    mode: 'boss',
     worldW: 4200, worldH: 1400,
     thumbnail: '💀',
     islands: [
@@ -380,6 +388,200 @@ export const MAPS: MapDef[] = [
         cleared: false, xpReward: 500, difficulty: 4 },
       { pos: { x: 2900, y: 900 }, creeps: [{ type: 'mammoth', level: 6 }, { type: 'wendigo', level: 5 }],
         dropTable: [{ itemId: 'periapt_of_vitality', chance: 0.5 }], cleared: false, xpReward: 450, difficulty: 4 },
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  STOCK 1v1 MAPS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  // ── IRON BRIDGE (2 islands) — tight 1v1, one narrow land bridge ────────────
+  {
+    id: 'iron_bridge',
+    name: 'Iron Bridge',
+    subtitle: '1v1 Rush',
+    description: 'Two home islands connected by a narrow land bridge. No neutral expansions — pure micro and macro. Control the bridge or die.',
+    mode: '1v1',
+    worldW: 2400, worldH: 1000,
+    thumbnail: '🌉',
+    islands: [
+      { id: 'blue', x: 60,   y: 80,  w: 800, h: 840, faction: 'blue' },
+      { id: 'bridge', x: 920, y: 320, w: 560, h: 360, faction: 'neutral' },
+      { id: 'red',  x: 1540, y: 80,  w: 800, h: 840, faction: 'red' },
+    ],
+    blueCastle: { x: 200, y: 320 },
+    redCastle:  { x: 2100, y: 320 },
+    startingResources: { gold: 500, wood: 200 },
+    aiAttackInterval: 75,
+    startingUnits: [
+      { faction: 'blue', type: 'pawn', pos: { x: 380, y: 380 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 350, y: 460 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 420, y: 450 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 300, y: 520 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 440, y: 510 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1930, y: 380 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1960, y: 460 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1900, y: 450 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1870, y: 520 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1970, y: 510 } },
+    ],
+    resources: [
+      // Blue
+      { type: 'goldmine', pos: { x: 550, y: 500 }, amount: 14000 },
+      { type: 'tree', pos: { x: 700, y: 180 } }, { type: 'tree', pos: { x: 780, y: 260 } },
+      { type: 'tree', pos: { x: 660, y: 700 } }, { type: 'tree', pos: { x: 740, y: 780 } },
+      { type: 'tree', pos: { x: 800, y: 650 } }, { type: 'tree', pos: { x: 820, y: 200 } },
+      // Bridge
+      { type: 'goldmine', pos: { x: 1200, y: 480 }, amount: 8000 },
+      { type: 'tree', pos: { x: 1050, y: 380 } }, { type: 'tree', pos: { x: 1350, y: 400 } },
+      // Red
+      { type: 'goldmine', pos: { x: 1850, y: 500 }, amount: 14000 },
+      { type: 'tree', pos: { x: 1600, y: 180 } }, { type: 'tree', pos: { x: 1680, y: 260 } },
+      { type: 'tree', pos: { x: 1640, y: 700 } }, { type: 'tree', pos: { x: 1720, y: 780 } },
+      { type: 'tree', pos: { x: 1580, y: 650 } }, { type: 'tree', pos: { x: 1560, y: 200 } },
+    ],
+    creepCamps: [
+      // Bridge guardians
+      { pos: { x: 1150, y: 450 }, creeps: [{ type: 'orc', level: 3 }, { type: 'spearGoblin', level: 2 }],
+        dropTable: [{ itemId: 'claws_of_attack', chance: 0.6 }, { itemId: 'healing_salve', chance: 1.0 }],
+        cleared: false, xpReward: 200, difficulty: 2 },
+      { pos: { x: 1280, y: 550 }, creeps: [{ type: 'orc', level: 3 }, { type: 'goblin', level: 2 }],
+        dropTable: [{ itemId: 'ring_of_protection', chance: 0.5 }],
+        cleared: false, xpReward: 200, difficulty: 2 },
+    ],
+  },
+
+  // ── TWIN PEAKS (4 islands) — vertical 1v1 with high-ground advantage ───────
+  {
+    id: 'twin_peaks',
+    name: 'Twin Peaks',
+    subtitle: '1v1 Heights',
+    description: 'Mirrored vertical layout with elevated home bases. Two shared resource islands between the peaks — fight for map control or turtle and tech.',
+    mode: '1v1',
+    worldW: 2200, worldH: 2000,
+    thumbnail: '⛰️',
+    islands: [
+      { id: 'blue', x: 400, y: 60,   w: 1400, h: 600, faction: 'blue' },
+      { id: 'west', x: 80,  y: 750,  w: 600,  h: 500, faction: 'neutral' },
+      { id: 'east', x: 1520, y: 750, w: 600,  h: 500, faction: 'neutral' },
+      { id: 'red',  x: 400, y: 1340, w: 1400, h: 600, faction: 'red' },
+    ],
+    blueCastle: { x: 950, y: 200 },
+    redCastle:  { x: 950, y: 1700 },
+    startingResources: { gold: 500, wood: 150 },
+    aiAttackInterval: 90,
+    startingUnits: [
+      { faction: 'blue', type: 'pawn', pos: { x: 1130, y: 280 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 1100, y: 360 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 1170, y: 350 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 1050, y: 400 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 1200, y: 400 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1130, y: 1720 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1100, y: 1640 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1170, y: 1650 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1050, y: 1600 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 1200, y: 1600 } },
+    ],
+    resources: [
+      // Blue peak
+      { type: 'goldmine', pos: { x: 700, y: 350 }, amount: 12000 },
+      { type: 'tree', pos: { x: 550, y: 150 } }, { type: 'tree', pos: { x: 650, y: 200 } },
+      { type: 'tree', pos: { x: 1500, y: 150 } }, { type: 'tree', pos: { x: 1600, y: 200 } },
+      { type: 'tree', pos: { x: 1400, y: 500 } }, { type: 'tree', pos: { x: 600, y: 500 } },
+      // West island
+      { type: 'goldmine', pos: { x: 350, y: 980 }, amount: 10000 },
+      { type: 'tree', pos: { x: 180, y: 850 } }, { type: 'tree', pos: { x: 280, y: 800 } },
+      { type: 'tree', pos: { x: 500, y: 1100 } }, { type: 'tree', pos: { x: 550, y: 850 } },
+      // East island
+      { type: 'goldmine', pos: { x: 1850, y: 980 }, amount: 10000 },
+      { type: 'tree', pos: { x: 1620, y: 850 } }, { type: 'tree', pos: { x: 1720, y: 800 } },
+      { type: 'tree', pos: { x: 1900, y: 1100 } }, { type: 'tree', pos: { x: 2000, y: 850 } },
+      // Red peak
+      { type: 'goldmine', pos: { x: 700, y: 1650 }, amount: 12000 },
+      { type: 'tree', pos: { x: 550, y: 1800 } }, { type: 'tree', pos: { x: 650, y: 1850 } },
+      { type: 'tree', pos: { x: 1500, y: 1800 } }, { type: 'tree', pos: { x: 1600, y: 1850 } },
+      { type: 'tree', pos: { x: 1400, y: 1450 } }, { type: 'tree', pos: { x: 600, y: 1450 } },
+    ],
+    creepCamps: [
+      // West island
+      { pos: { x: 300, y: 900 }, creeps: [{ type: 'goblin', level: 1 }, { type: 'goblin', level: 1 }, { type: 'spearGoblin', level: 2 }],
+        dropTable: [{ itemId: 'healing_salve', chance: 1.0 }, { itemId: 'boots_of_speed', chance: 0.4 }],
+        cleared: false, xpReward: 150, difficulty: 1 },
+      { pos: { x: 450, y: 1050 }, creeps: [{ type: 'orc', level: 3 }, { type: 'archerGoblin', level: 2 }],
+        dropTable: [{ itemId: 'claws_of_attack', chance: 0.5 }],
+        cleared: false, xpReward: 250, difficulty: 2 },
+      // East island
+      { pos: { x: 1800, y: 900 }, creeps: [{ type: 'skeleton', level: 1 }, { type: 'skeleton', level: 1 }, { type: 'skeleton', level: 2 }],
+        dropTable: [{ itemId: 'mana_potion', chance: 1.0 }, { itemId: 'ring_of_protection', chance: 0.4 }],
+        cleared: false, xpReward: 150, difficulty: 1 },
+      { pos: { x: 1700, y: 1050 }, creeps: [{ type: 'fireElemental', level: 4 }],
+        dropTable: [{ itemId: 'orb_of_fire', chance: 0.5 }],
+        cleared: false, xpReward: 300, difficulty: 3 },
+    ],
+  },
+
+  // ── GRUDGE ARENA (3 islands) — competitive 1v1 with central boss ────────────
+  {
+    id: 'grudge_arena',
+    name: 'Grudge Arena',
+    subtitle: '1v1 Ranked',
+    description: 'The definitive 1v1 map. Symmetrical bases, one contested center island with a boss. First blood on the boss wins the item advantage. Designed for ranked play.',
+    mode: '1v1',
+    worldW: 3000, worldH: 1200,
+    thumbnail: '🏆',
+    islands: [
+      { id: 'blue',   x: 60,   y: 80,  w: 900, h: 1040, faction: 'blue' },
+      { id: 'center', x: 1100, y: 150, w: 800, h: 900,  faction: 'neutral' },
+      { id: 'red',    x: 2040, y: 80,  w: 900, h: 1040, faction: 'red' },
+    ],
+    blueCastle: { x: 200, y: 400 },
+    redCastle:  { x: 2700, y: 400 },
+    startingResources: { gold: 500, wood: 150 },
+    aiAttackInterval: 80,
+    startingUnits: [
+      { faction: 'blue', type: 'pawn', pos: { x: 380, y: 460 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 350, y: 540 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 420, y: 530 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 300, y: 580 } },
+      { faction: 'blue', type: 'pawn', pos: { x: 440, y: 580 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 2580, y: 460 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 2610, y: 540 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 2550, y: 530 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 2630, y: 580 } },
+      { faction: 'red',  type: 'pawn', pos: { x: 2520, y: 580 } },
+    ],
+    resources: [
+      // Blue home
+      { type: 'goldmine', pos: { x: 600, y: 600 }, amount: 12500 },
+      { type: 'tree', pos: { x: 700, y: 180 } }, { type: 'tree', pos: { x: 780, y: 260 } },
+      { type: 'tree', pos: { x: 840, y: 170 } }, { type: 'tree', pos: { x: 660, y: 820 } },
+      { type: 'tree', pos: { x: 740, y: 890 } }, { type: 'tree', pos: { x: 800, y: 800 } },
+      { type: 'tree', pos: { x: 880, y: 720 } }, { type: 'tree', pos: { x: 910, y: 850 } },
+      // Center
+      { type: 'goldmine', pos: { x: 1500, y: 580 }, amount: 15000 },
+      { type: 'tree', pos: { x: 1200, y: 250 } }, { type: 'tree', pos: { x: 1350, y: 300 } },
+      { type: 'tree', pos: { x: 1650, y: 280 } }, { type: 'tree', pos: { x: 1800, y: 320 } },
+      { type: 'tree', pos: { x: 1250, y: 850 } }, { type: 'tree', pos: { x: 1750, y: 880 } },
+      // Red home
+      { type: 'goldmine', pos: { x: 2400, y: 600 }, amount: 12500 },
+      { type: 'tree', pos: { x: 2120, y: 180 } }, { type: 'tree', pos: { x: 2200, y: 260 } },
+      { type: 'tree', pos: { x: 2160, y: 170 } }, { type: 'tree', pos: { x: 2300, y: 820 } },
+      { type: 'tree', pos: { x: 2220, y: 890 } }, { type: 'tree', pos: { x: 2160, y: 800 } },
+      { type: 'tree', pos: { x: 2100, y: 720 } }, { type: 'tree', pos: { x: 2080, y: 850 } },
+    ],
+    creepCamps: [
+      // Center easy camp
+      { pos: { x: 1350, y: 450 }, creeps: [{ type: 'goblin', level: 1 }, { type: 'goblin', level: 1 }, { type: 'spearGoblin', level: 2 }],
+        dropTable: [{ itemId: 'claws_of_attack', chance: 0.5 }, { itemId: 'healing_salve', chance: 1.0 }],
+        cleared: false, xpReward: 150, difficulty: 1 },
+      // Center boss
+      { pos: { x: 1500, y: 650 }, creeps: [{ type: 'ogreBoss', level: 6 }, { type: 'orc', level: 3 }, { type: 'orc', level: 3 }],
+        dropTable: [{ itemId: 'crown_of_kings', chance: 0.7 }, { itemId: 'tome_of_power', chance: 0.5 }],
+        cleared: false, xpReward: 600, difficulty: 4 },
+      // Center hard camp
+      { pos: { x: 1650, y: 450 }, creeps: [{ type: 'fireElemental', level: 4 }, { type: 'skeleton', level: 2 }],
+        dropTable: [{ itemId: 'orb_of_fire', chance: 0.5 }, { itemId: 'mana_potion', chance: 1.0 }],
+        cleared: false, xpReward: 300, difficulty: 3 },
     ],
   },
 ];

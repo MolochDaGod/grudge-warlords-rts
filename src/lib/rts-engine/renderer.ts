@@ -104,31 +104,46 @@ export function renderGame(
 
   // ── Islands — Tiny Swords grass + cliff edges ─────────────────────────────
   // Use tilemap sprite renderer if tileset images are loaded; else procedural fallback
-  const tilemapRendered = state.tilemap ? drawTilemapTerrain(ctx, state.tilemap) : false;
+  const tilemapRendered = state.tilemap ? drawTilemapTerrain(ctx, state.tilemap, camera.x, camera.y, canvasW, canvasH, zoom) : false;
   if (!tilemapRendered) {
     for (const isl of state.islands) {
+      // Skip islands fully off-screen
+      if (isl.x + isl.w < camera.x || isl.x > camera.x + canvasW / zoom ||
+          isl.y + isl.h < camera.y || isl.y > camera.y + canvasH / zoom) continue;
       drawTinySwordsIsland(ctx, isl, t);
     }
   }
+
+  // ── Viewport bounds for entity culling ─────────────────────────────────────
+  const vpLeft = camera.x - 100;
+  const vpTop = camera.y - 100;
+  const vpRight = camera.x + canvasW / zoom + 100;
+  const vpBottom = camera.y + canvasH / zoom + 100;
 
   // ── Y-sorted rendering: resources, buildings, units ──────────────────────
   type Renderable = { y: number; draw: () => void };
   const renderables: Renderable[] = [];
 
-  // Resources
+  // Resources (viewport culled)
   for (const [, res] of state.resources) {
     if (res.amount <= 0) continue;
+    if (res.pos.x < vpLeft || res.pos.x > vpRight || res.pos.y < vpTop || res.pos.y > vpBottom) continue;
     renderables.push({ y: res.pos.y, draw: () => drawResource(ctx, res) });
   }
 
-  // Buildings
+  // Buildings (viewport culled)
   for (const [, bld] of state.buildings) {
+    const cfg = BUILDING_CONFIGS[bld.type as keyof typeof BUILDING_CONFIGS];
+    const bw = cfg?.w ?? 96;
+    const bh = cfg?.h ?? 96;
+    if (bld.pos.x + bw < vpLeft || bld.pos.x > vpRight || bld.pos.y + bh < vpTop || bld.pos.y > vpBottom) continue;
     renderables.push({ y: bld.pos.y + 64, draw: () => drawBuilding(ctx, bld) });
   }
 
-  // Units
+  // Units (viewport culled)
   for (const [, unit] of state.units) {
     if (unit.state === 'dead') continue;
+    if (unit.pos.x < vpLeft || unit.pos.x > vpRight || unit.pos.y < vpTop || unit.pos.y > vpBottom) continue;
     renderables.push({ y: unit.pos.y + 32, draw: () => drawUnit(ctx, unit, state) });
   }
 

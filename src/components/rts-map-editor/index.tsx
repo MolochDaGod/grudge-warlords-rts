@@ -356,6 +356,7 @@ export function RTSMapEditor({ width = 60, height = 40 }: RTSMapEditorProps) {
       name: state.name,
       subtitle: `${state.islands.length}-Island Map`,
       description: `Custom map with ${state.islands.length} islands, ${state.resources.length} resources, ${state.creepCamps.length} creep camps`,
+      mode: '1v1',
       worldW: state.width * TILE_SIZE,
       worldH: state.height * TILE_SIZE,
       islands: state.islands.map(i => ({ ...i })),

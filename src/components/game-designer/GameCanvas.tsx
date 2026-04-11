@@ -12,7 +12,7 @@ import {
   commandCastAbility, commandRankUpAbility,
 } from '@/lib/rts-engine/engine';
 import { renderGame } from '@/lib/rts-engine/renderer';
-import { MAPS } from '@/lib/rts-engine/maps';
+import { MAPS, type MapMode } from '@/lib/rts-engine/maps';
 import { fxController } from '@/lib/rts-engine/fx-controller';
 import { BUILDING_CONFIGS, ABILITY_DEFS } from '@/lib/rts-engine/constants';
 import { spriteLoader } from '@/lib/rts-engine/sprite-loader';
@@ -78,6 +78,7 @@ export function GameCanvas() {
   const [selectedMap, setSelectedMap] = useState(0);
   const [selectedFaction, setSelectedFaction] = useState<'kingdom' | 'legion'>('kingdom');
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
+  const [modeFilter, setModeFilter] = useState<MapMode | 'all'>('1v1');
   const [buildMode, setBuildMode] = useState<BuildingType | null>(null);
   const [attackMoveMode, setAttackMoveMode] = useState(false);
   const [abilityMode, setAbilityMode] = useState<{ heroId: string; abilityIdx: number } | null>(null);
@@ -195,7 +196,7 @@ export function GameCanvas() {
       fpsTimer += dt;
       if (fpsTimer >= 1) { setFps(fpsCounter); fpsCounter = 0; fpsTimer = 0; }
       hudFrame++;
-      if (hudFrame >= 6) { hudFrame = 0; setHudTick(t => (t + 1) & 255); }
+      if (hudFrame >= 15) { hudFrame = 0; setHudTick(t => (t + 1) & 255); }
       animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
@@ -591,24 +592,46 @@ export function GameCanvas() {
           </div>
         </div>
 
+        {/* Mode filter tabs */}
+        <div className="flex gap-1.5 mb-3">
+          {(['1v1', 'ffa', 'boss', 'all'] as const).map(mode => (
+            <button key={mode}
+              onClick={() => { setModeFilter(mode); const firstMatch = MAPS.findIndex(m => mode === 'all' || m.mode === mode); if (firstMatch >= 0) setSelectedMap(firstMatch); }}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                modeFilter === mode
+                  ? 'bg-amber-600/80 border-amber-400 text-white'
+                  : 'bg-zinc-800/60 border-zinc-600/50 text-zinc-400 hover:bg-zinc-700/60'
+              }`}>
+              {mode === '1v1' ? '⚔️ 1v1' : mode === 'ffa' ? '🌊 FFA' : mode === 'boss' ? '💀 Boss' : '📋 All'}
+            </button>
+          ))}
+        </div>
+
         {/* Map selection — island cards */}
         <div className="flex gap-3 mb-5 flex-wrap justify-center">
-          {MAPS.map((m, i) => (
-            <Card key={m.id}
-              className={`cursor-pointer w-44 transition-all duration-150 hover:scale-105 ${
-                i === selectedMap
-                  ? 'border-amber-400 bg-zinc-800/90 shadow-lg shadow-amber-500/20 ring-1 ring-amber-400/30'
-                  : 'border-zinc-600/50 bg-zinc-800/60 hover:border-zinc-500'
-              }`}
-              onClick={() => setSelectedMap(i)}>
-              <CardContent className="pt-3 pb-2 text-center">
-                <div className="text-2xl mb-1">{m.thumbnail}</div>
-                <div className="font-bold text-sm text-zinc-100">{m.name}</div>
-                <div className="text-[11px] text-amber-400/70">{m.subtitle}</div>
-                <div className="text-[9px] text-zinc-500 mt-1 leading-snug">{m.description.slice(0, 60)}...</div>
-              </CardContent>
-            </Card>
-          ))}
+          {MAPS.map((m, i) => {
+            if (modeFilter !== 'all' && m.mode !== modeFilter) return null;
+            const modeColor = m.mode === '1v1' ? 'bg-blue-600/80' : m.mode === 'ffa' ? 'bg-emerald-600/80' : 'bg-red-600/80';
+            return (
+              <Card key={m.id}
+                className={`cursor-pointer w-44 transition-all duration-150 hover:scale-105 ${
+                  i === selectedMap
+                    ? 'border-amber-400 bg-zinc-800/90 shadow-lg shadow-amber-500/20 ring-1 ring-amber-400/30'
+                    : 'border-zinc-600/50 bg-zinc-800/60 hover:border-zinc-500'
+                }`}
+                onClick={() => setSelectedMap(i)}>
+                <CardContent className="pt-3 pb-2 text-center">
+                  <div className="text-2xl mb-1">{m.thumbnail}</div>
+                  <div className="font-bold text-sm text-zinc-100">{m.name}</div>
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <span className={`text-[8px] font-bold uppercase px-1.5 py-px rounded ${modeColor} text-white`}>{m.mode}</span>
+                    <span className="text-[11px] text-amber-400/70">{m.subtitle}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-500 mt-1 leading-snug">{m.description.slice(0, 60)}...</div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Faction picker */}
