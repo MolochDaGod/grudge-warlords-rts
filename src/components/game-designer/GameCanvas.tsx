@@ -72,6 +72,7 @@ export function GameCanvas() {
   const mouseRef = useRef({ x: 0, y: 0, inCanvas: false });
   const lastClickRef = useRef({ time: 0, unitType: '' });
   const prevGameResultRef = useRef<'playing' | 'won' | 'lost'>('playing');
+  const middleDragRef = useRef<{ active: boolean; lastX: number; lastY: number }>({ active: false, lastX: 0, lastY: 0 });
 
   const [phase, setPhase] = useState<GamePhase>('menu');
   const [gameResult, setGameResult] = useState<'playing' | 'won' | 'lost'>('playing');
@@ -241,6 +242,13 @@ export function GameCanvas() {
     const state = stateRef.current;
     const world = screenToWorld(e);
 
+    // Middle mouse button → start camera drag
+    if (e.button === 1) {
+      e.preventDefault();
+      middleDragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY };
+      return;
+    }
+
     if (e.button === 0) {
       const minimapPos = isMinimapClick(e);
       if (minimapPos) {
@@ -297,6 +305,18 @@ export function GameCanvas() {
       mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, inCanvas: true };
     }
     if (!stateRef.current) return;
+
+    // Middle-mouse camera drag
+    if (middleDragRef.current.active) {
+      const dx = e.clientX - middleDragRef.current.lastX;
+      const dy = e.clientY - middleDragRef.current.lastY;
+      middleDragRef.current.lastX = e.clientX;
+      middleDragRef.current.lastY = e.clientY;
+      stateRef.current.camera.x -= dx / stateRef.current.zoom;
+      stateRef.current.camera.y -= dy / stateRef.current.zoom;
+      return;
+    }
+
     const minimapPos = isMinimapClick(e);
     if (minimapPos && e.buttons === 1) {
       const { w, h } = canvasSizeRef.current;
@@ -309,6 +329,9 @@ export function GameCanvas() {
 
   // ── Mouse up ───────────────────────────────────────────────────────────────
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    // Release middle-mouse drag
+    if (e.button === 1) { middleDragRef.current.active = false; return; }
+
     if (!stateRef.current) return;
     const state = stateRef.current;
     if (e.button === 0 && state.dragStart && state.dragEnd) {
@@ -367,15 +390,35 @@ export function GameCanvas() {
     }
   }, [screenToWorld]);
 
-  const handleMouseLeave = useCallback(() => { mouseRef.current.inCanvas = false; }, []);
-
-  // ── Scroll wheel zoom ──────────────────────────────────────────────────────
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!stateRef.current) return;
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.92 : 1.08;
-    stateRef.current.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, stateRef.current.zoom * delta));
+  const handleMouseLeave = useCallback(() => {
+    mouseRef.current.inCanvas = false;
+    middleDragRef.current.active = false;
   }, []);
+
+  // ── Scroll wheel zoom (native listener for non-passive preventDefault) ─────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || phase !== 'playing') return;
+    const onWheel = (e: WheelEvent) => {
+      if (!stateRef.current) return;
+      e.preventDefault();
+      // Zoom toward mouse cursor position
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const { camera, zoom } = stateRef.current;
+      const worldX = mx / zoom + camera.x;
+      const worldY = my / zoom + camera.y;
+      const factor = e.deltaY > 0 ? 0.92 : 1.08;
+      const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * factor));
+      // Adjust camera so the world point under cursor stays fixed
+      stateRef.current.zoom = newZoom;
+      stateRef.current.camera.x = worldX - mx / newZoom;
+      stateRef.current.camera.y = worldY - my / newZoom;
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [phase]);
 
   // ── Ability cast / rank-up (declared before keyboard effect to satisfy dep array) ─
   const handleHUDCastAbility = useCallback((heroId: string, abilityIdx: number) => {
@@ -722,7 +765,7 @@ export function GameCanvas() {
   <div
         ref={ containerRef }
 className = "absolute inset-0 overflow-hidden"
-style = {{ cursor: buildMode || attackMoveMode || abilityMode ? 'crosshair' : 'default' }}
+style = {{ cursor: middleDragRef.current.active ? 'grabbing' : buildMode || attackMoveMode || abilityMode ? 'crosshair' : 'default' }}
       >
   <canvas
           ref={ canvasRef }
@@ -732,7 +775,6 @@ onMouseDown = { handleMouseDown }
 onMouseMove = { handleMouseMove }
 onMouseUp = { handleMouseUp }
 onMouseLeave = { handleMouseLeave }
-onWheel = { handleWheel }
 onContextMenu = { handleContextMenu }
   />
       </div>
