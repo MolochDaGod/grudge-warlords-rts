@@ -229,6 +229,7 @@ function drawTilemapLayer(
   getRectFn: (tileIndex: number) => { sx: number; sy: number; sw: number; sh: number },
   alpha = 1,
   oversize = 1,  // multiplier > 1 draws tiles larger than TS_TILE (for foam/shadow 128px sprites on 64px grid)
+  viewMinX = 0, viewMinY = 0, viewMaxX = map.width, viewMaxY = map.height,
 ) {
   const img = loadImg(imgSrc, PRIORITY.AMBIENT);
   if (!img) return;
@@ -236,8 +237,14 @@ function drawTilemapLayer(
   const drawSize = TS_TILE * oversize;
   const offset = TS_TILE * (oversize - 1) * 0.5; // center the oversized sprite on the tile
 
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
+  // Only iterate visible tile range (viewport culled)
+  const x0 = Math.max(0, viewMinX - 1);
+  const y0 = Math.max(0, viewMinY - 1);
+  const x1 = Math.min(map.width, viewMaxX + 2);
+  const y1 = Math.min(map.height, viewMaxY + 2);
+
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
       const tileIdx = getTile(map, layer, x, y);
       if (tileIdx === 0) continue;
       const { sx, sy, sw, sh } = getRectFn(tileIdx);
@@ -254,7 +261,7 @@ function drawTilemapLayer(
  * Call instead of (or with fallback to) drawTinySwordsIsland().
  * Returns true if tileset images were loaded and rendering succeeded.
  */
-function drawTilemapTerrain(ctx: CanvasRenderingContext2D, map: TilemapData): boolean {
+function drawTilemapTerrain(ctx: CanvasRenderingContext2D, map: TilemapData, camX: number, camY: number, vpW: number, vpH: number, zoom: number): boolean {
   const flatImg = spriteLoader.get(TILESETS.flatGround, PRIORITY.AMBIENT);
   const elevImg = spriteLoader.get(TILESETS.elevatedGround, PRIORITY.AMBIENT);
   const foamImg = spriteLoader.get(TILESETS.waterFoam, PRIORITY.AMBIENT);
@@ -263,30 +270,36 @@ function drawTilemapTerrain(ctx: CanvasRenderingContext2D, map: TilemapData): bo
   // If the primary tile images aren't loaded yet, signal caller to use procedural fallback
   if (!flatImg || !elevImg) return false;
 
+  // Compute visible tile range from camera + viewport (with padding for oversize sprites)
+  const viewMinX = Math.floor(camX / TS_TILE);
+  const viewMinY = Math.floor(camY / TS_TILE);
+  const viewMaxX = Math.ceil((camX + vpW / zoom) / TS_TILE);
+  const viewMaxY = Math.ceil((camY + vpH / zoom) / TS_TILE);
+
   // Layer order: foam → flat ground → shadows → elevated tiers
   if (foamImg) {
-    drawTilemapLayer(ctx, map, LAYER_FOAM, TILESETS.waterFoam, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 1, 2);
+    drawTilemapLayer(ctx, map, LAYER_FOAM, TILESETS.waterFoam, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 1, 2, viewMinX, viewMinY, viewMaxX, viewMaxY);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_FLAT, TILESETS.flatGround, getFlatTileRect);
+  drawTilemapLayer(ctx, map, LAYER_FLAT, TILESETS.flatGround, getFlatTileRect, 1, 1, viewMinX, viewMinY, viewMaxX, viewMaxY);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_0, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.65, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_0, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.65, 2, viewMinX, viewMinY, viewMaxX, viewMaxY);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_1, TILESETS.elevatedGround, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_1, TILESETS.elevatedGround, getElevatedTileRect, 1, 1, viewMinX, viewMinY, viewMaxX, viewMaxY);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_1, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.55, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_1, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.55, 2, viewMinX, viewMinY, viewMaxX, viewMaxY);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_2, TILESETS.elevatedGround, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_2, TILESETS.elevatedGround, getElevatedTileRect, 1, 1, viewMinX, viewMinY, viewMaxX, viewMaxY);
 
   if (shadowImg) {
-    drawTilemapLayer(ctx, map, LAYER_SHADOW_2, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.45, 2);
+    drawTilemapLayer(ctx, map, LAYER_SHADOW_2, TILESETS.shadow, () => ({ sx: 0, sy: 0, sw: 128, sh: 128 }), 0.45, 2, viewMinX, viewMinY, viewMaxX, viewMaxY);
   }
 
-  drawTilemapLayer(ctx, map, LAYER_ELEV_3, TILESETS.elevatedGround, getElevatedTileRect);
+  drawTilemapLayer(ctx, map, LAYER_ELEV_3, TILESETS.elevatedGround, getElevatedTileRect, 1, 1, viewMinX, viewMinY, viewMaxX, viewMaxY);
 
   return true;
 }
