@@ -18,10 +18,10 @@ import type { Vec2 } from './types';
 import type { GameState } from './types';
 import type { VfxType } from './vfx';
 
-// Audio is served locally from public/audio/fx/ (Vite serves from public/)
-// Also on CDN at molochdagod.github.io/ObjectStore/audio/fx/ after push
+// Audio: local first (fast, no CORS), then R2 CDN, then GitHub Pages fallback
 const LOCAL_FX = '/audio/fx';
-const CDN_FX = 'https://molochdagod.github.io/ObjectStore/audio/fx';
+const CDN_FX = 'https://assets.grudge-studio.com/audio/fx';
+const PAGES_FX = 'https://molochdagod.github.io/ObjectStore/audio/fx';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Audio Manager
@@ -33,9 +33,9 @@ interface SoundDef {
   pool?: number;
 }
 
-/** Helper: local path first (fast, no CORS), CDN fallback */
+/** Helper: local first, CDN second, Pages third */
 function fx(name: string, ext = 'ogg'): string[] {
-  return [`${LOCAL_FX}/${name}.${ext}`, `${CDN_FX}/${name}.${ext}`];
+  return [`${LOCAL_FX}/${name}.${ext}`, `${CDN_FX}/${name}.${ext}`, `${PAGES_FX}/${name}.${ext}`];
 }
 
 const SOUND_DEFS: Record<string, SoundDef> = {

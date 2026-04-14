@@ -17,8 +17,9 @@ export const UPKEEP_NONE_RATE = 1.0;
 export const UPKEEP_LOW_RATE = 0.7;
 export const UPKEEP_HIGH_RATE = 0.4;
 
-// ── Sprite CDN ─────────────────────────────────────────────────────────────────
-const CDN = 'https://molochdagod.github.io/ObjectStore';
+// ── Sprite CDN (R2 primary, GitHub Pages fallback) ───────────────────────
+const CDN = 'https://assets.grudge-studio.com';
+const CDN_PAGES = 'https://molochdagod.github.io/ObjectStore';
 
 // ── Unit Configs (WC3 roles mapped from Miniworld data) ────────────────────────
 export const UNIT_CONFIGS: Record<string, UnitConfig> = {

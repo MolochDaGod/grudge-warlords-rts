@@ -1,4 +1,7 @@
-const BASE   = 'https://molochdagod.github.io/ObjectStore/sprites/effects';
+// Primary: R2 CDN (fast, cached), Fallback: GitHub Pages
+const CDN_BASE = 'https://assets.grudge-studio.com/sprites/effects';
+const PAGES_BASE = 'https://molochdagod.github.io/ObjectStore/sprites/effects';
+const BASE = CDN_BASE;
 const CUSTOM = `${BASE}/custom`;
 const RETRO  = `${BASE}/retro_impact`;
 
