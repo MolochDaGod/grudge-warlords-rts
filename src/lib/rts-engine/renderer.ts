@@ -17,15 +17,15 @@ function loadImg(src: string, priority: number = PRIORITY.UNIT): HTMLImageElemen
 }
 
 // ── Colors — Tiny Swords palette ────────────────────────────────────────────────
-const FACTION_COLORS = { blue: '#3b82f6', red: '#ef4444', neutral: '#f59e0b' };
-const WATER_DEEP   = '#3a9fbf';   // Tiny Swords teal
-const WATER_MID    = '#4db8d1';
-const WATER_LIGHT  = '#6bc8d9';
-const GRASS_MAIN   = '#5a9e3e';   // Main grass
-const GRASS_LIGHT  = '#6db84a';   // Grass highlight
-const GRASS_DARK   = '#3d7a2a';   // Grass shadow
-const CLIFF_TOP    = '#7a8b96';   // Stone cliff face
-const CLIFF_MID    = '#5e6e78';
+const FACTION_COLORS: Record<string, string> = { blue: '#3b82f6', red: '#ef4444', green: '#22c55e', neutral: '#f59e0b' };
+const WATER_DEEP = '#3a9fbf';   // Tiny Swords teal
+const WATER_MID = '#4db8d1';
+const WATER_LIGHT = '#6bc8d9';
+const GRASS_MAIN = '#5a9e3e';   // Main grass
+const GRASS_LIGHT = '#6db84a';   // Grass highlight
+const GRASS_DARK = '#3d7a2a';   // Grass shadow
+const CLIFF_TOP = '#7a8b96';   // Stone cliff face
+const CLIFF_MID = '#5e6e78';
 const CLIFF_BOTTOM = '#4a5860';
 const CLIFF_SHADOW = 'rgba(0,0,0,0.2)';
 const GOLD_MINE_COLOR = '#fbbf24';
@@ -41,6 +41,20 @@ const TERRAIN = {
   fence: `${CDN}/sprites/miniworld/Decorations/WoodFence.png`,
   sheep: `${CDN}/sprites/miniworld/Animals/Sheep.png`,
 };
+
+// ── Tiny Swords stylized harvestables (local assets) ───────────────────────────
+const TS_TREES = [
+  '/sprites/tiny-swords/decorations/trees/Tree1.png',
+  '/sprites/tiny-swords/decorations/trees/Tree2.png',
+  '/sprites/tiny-swords/decorations/trees/Tree3.png',
+  '/sprites/tiny-swords/decorations/trees/Tree4.png',
+];
+const TS_ROCKS = [
+  '/sprites/tiny-swords/decorations/rocks/Rock1.png',
+  '/sprites/tiny-swords/decorations/rocks/Rock2.png',
+  '/sprites/tiny-swords/decorations/rocks/Rock3.png',
+  '/sprites/tiny-swords/decorations/rocks/Rock4.png',
+];
 
 // ── Sprite rendering helper ────────────────────────────────────────────────────
 function drawSprite(
@@ -109,7 +123,7 @@ export function renderGame(
     for (const isl of state.islands) {
       // Skip islands fully off-screen
       if (isl.x + isl.w < camera.x || isl.x > camera.x + canvasW / zoom ||
-          isl.y + isl.h < camera.y || isl.y > camera.y + canvasH / zoom) continue;
+        isl.y + isl.h < camera.y || isl.y > camera.y + canvasH / zoom) continue;
       drawTinySwordsIsland(ctx, isl, t);
     }
   }
@@ -433,19 +447,37 @@ function drawResource(ctx: CanvasRenderingContext2D, res: Resource) {
     ctx.beginPath();
     ctx.arc(res.pos.x + 4, res.pos.y - 1, 4, 0, Math.PI * 2);
     ctx.fill();
+  } else if (res.type === 'rock') {
+    // Rock — Tiny Swords stylized, deterministic 1-of-4 variant per position
+    const variant = (((res.pos.x * 13 + res.pos.y * 7) | 0) % 4 + 4) % 4;
+    const rockImg = loadImg(TS_ROCKS[variant], PRIORITY.BUILDING);
+    if (rockImg) {
+      const w = rockImg.naturalWidth || 64;
+      const h = rockImg.naturalHeight || 64;
+      ctx.drawImage(rockImg, res.pos.x - w / 2, res.pos.y - h * 0.7, w, h);
+    } else {
+      // Fallback — grey boulder
+      ctx.fillStyle = '#6b7280';
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x, res.pos.y - 4, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#9ca3af';
+      ctx.beginPath();
+      ctx.ellipse(res.pos.x - 3, res.pos.y - 8, 6, 4, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else {
-    // Tree — Tiny Swords style: try CDN sprite, fallback to procedural pixel tree
-    const treeImg = loadImg(TERRAIN.tree1, PRIORITY.BUILDING);
+    // Tree — local Tiny Swords Tree[1-4].png, deterministic variant per position
+    const variant = (((res.pos.x * 7 + res.pos.y * 3) | 0) % 4 + 4) % 4;
+    const treeImg = loadImg(TS_TREES[variant], PRIORITY.BUILDING);
     if (treeImg) {
-      // Tree1.png is a 4-frame strip of 32x32 pine trees
-      const treeVariant = ((res.pos.x * 7 + res.pos.y * 3) | 0) % 4;
-      ctx.drawImage(treeImg, treeVariant * 32, 0, 32, 32, res.pos.x - 24, res.pos.y - 40, 48, 48);
+      const w = treeImg.naturalWidth || 64;
+      const h = treeImg.naturalHeight || 96;
+      ctx.drawImage(treeImg, res.pos.x - w / 2, res.pos.y - h * 0.85, w, h);
     } else {
       // Procedural pixel-art tree (green canopy + brown trunk)
-      // Trunk
       ctx.fillStyle = '#5b3a1a';
       ctx.fillRect(res.pos.x - 3, res.pos.y - 4, 6, 14);
-      // Canopy layers (dark → light, bottom → top)
       ctx.fillStyle = '#2d6b1b';
       ctx.beginPath();
       ctx.ellipse(res.pos.x, res.pos.y - 14, 16, 12, 0, 0, Math.PI * 2);
@@ -458,7 +490,6 @@ function drawResource(ctx: CanvasRenderingContext2D, res: Resource) {
       ctx.beginPath();
       ctx.ellipse(res.pos.x - 1, res.pos.y - 26, 9, 7, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Highlight
       ctx.fillStyle = '#6bc84a';
       ctx.globalAlpha = 0.5;
       ctx.beginPath();
@@ -601,7 +632,9 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
   }
 
   // Try sprite rendering — pass actual faction so local TS sprites use correct color
-  const sprites = getUnitSprites(unit.faction, unit.type);
+  // (third-party Worge/'green' faction shares neutral sprite set until its own assets land)
+  const sprFaction: 'blue' | 'red' | 'neutral' = unit.faction === 'green' ? 'neutral' : unit.faction;
+  const sprites = getUnitSprites(sprFaction, unit.type);
   const animKey = unit.anim.action === 'run' ? 'run' : unit.anim.action === 'attack' ? 'attack' :
     unit.anim.action === 'interact' ? 'interact' : 'idle';
   const sprCfg = sprites?.[animKey] ?? sprites?.['idle'];
@@ -625,7 +658,7 @@ function drawUnit(ctx: CanvasRenderingContext2D, unit: Unit, state: GameState) {
     ctx.textAlign = 'center';
     const icon = unit.role === 'worker' ? '⛏️' : unit.role === 'melee' ? '⚔️' :
       unit.role === 'ranged' ? '🏹' : unit.role === 'caster' ? '✨' :
-      unit.role === 'siege' ? '💣' : unit.role === 'hero' ? '👑' : '•';
+        unit.role === 'siege' ? '💣' : unit.role === 'hero' ? '👑' : '•';
     ctx.fillText(icon, unit.pos.x, unit.pos.y + 5);
     ctx.textAlign = 'left';
   }

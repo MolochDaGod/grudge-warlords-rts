@@ -9,7 +9,7 @@ import {
   UPKEEP_NONE_MAX, UPKEEP_LOW_MAX, UPKEEP_NONE_RATE, UPKEEP_LOW_RATE, UPKEEP_HIGH_RATE,
   PRIEST_HEAL_RANGE, PRIEST_HEAL_AMOUNT, PRIEST_HEAL_PULSE,
 } from './constants';
-import { MapDef } from './maps';
+import { MapDef, ResourceDef, expandResourceZones } from './maps';
 import { computePathWaypoints, isOnIsland } from './pathfinding';
 import { HIT_VFX, randomRetroCrit } from './vfx';
 import { fxController } from './fx-controller';
@@ -71,8 +71,8 @@ function makeBuilding(faction: Faction, type: BuildingType, pos: Vec2, underCons
   };
 }
 
-function makeResource(type: 'tree' | 'goldmine', pos: Vec2, amount?: number): Resource {
-  const defaultAmount = type === 'tree' ? 220 : 12500;
+function makeResource(type: 'tree' | 'goldmine' | 'rock', pos: Vec2, amount?: number): Resource {
+  const defaultAmount = type === 'goldmine' ? 12500 : type === 'rock' ? 180 : 220;
   const amt = amount ?? defaultAmount;
   return {
     id: uid(), type, pos: { ...pos },
@@ -175,10 +175,12 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
     camera: { x: mapDef.blueCastle.x - 400, y: mapDef.blueCastle.y - 250 },
     zoom: 1,
     playerResources: { gold: mapDef.startingResources.gold, wood: mapDef.startingResources.wood, food: 0, maxFood: 12 },
-    enemyResources:  { gold: mapDef.startingResources.gold, wood: mapDef.startingResources.wood, food: 0, maxFood: 12 },
+    enemyResources: { gold: mapDef.startingResources.gold, wood: mapDef.startingResources.wood, food: 0, maxFood: 12 },
     selected: new Set(), dragStart: null, dragEnd: null, buildMode: null,
     winner: null,
     aiState: { phase: 'early', phaseTimer: 0, attackTimer: 0, buildTimer: 0, lastAction: '', heroLevel: 0, techTier: 1, heroSummoned: false, aiAttackInterval: mapDef.aiAttackInterval },
+    greenResources: null,
+    ai2State: null,
     dayNightCycle: 0, timeOfDay: 'day',
     upkeepLevel: 'none', techTier: 1,
     controlGroups: { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set(), 6: new Set(), 7: new Set(), 8: new Set(), 9: new Set() },
@@ -201,7 +203,7 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
 
   // Castles (pre-built)
   const bc = makeBuilding('blue', 'castle', mapDef.blueCastle);
-  const rc = makeBuilding('red',  'castle', mapDef.redCastle);
+  const rc = makeBuilding('red', 'castle', mapDef.redCastle);
   state.buildings.set(bc.id, bc);
   state.buildings.set(rc.id, rc);
 
@@ -214,8 +216,12 @@ export function createInitialState(mapDef: MapDef, playerFaction: 'kingdom' | 'l
     state.units.set(unit.id, unit);
   });
 
-  // Resources
-  mapDef.resources.forEach(r => {
+  // Resources — hand-placed (gold mines) + procedurally expanded zones (trees/rocks)
+  const allResources: ResourceDef[] = [...mapDef.resources];
+  if (mapDef.resourceZones && mapDef.resourceZones.length > 0) {
+    allResources.push(...expandResourceZones(mapDef.resourceZones));
+  }
+  allResources.forEach(r => {
     const res = makeResource(r.type, r.pos, r.amount);
     state.resources.set(res.id, res);
   });
@@ -501,7 +507,7 @@ export function updateGame(state: GameState, dt: number): void {
         const gathered = Math.min(harvestAmt, res.amount, (cfg?.carryCapacity ?? 30) - unit.carryAmount);
         res.amount -= gathered;
         unit.carryAmount += gathered;
-        unit.carryType = res.type === 'tree' ? 'wood' : 'gold';
+        unit.carryType = res.type === 'goldmine' ? 'gold' : 'wood';
         if (unit.carryAmount >= (cfg?.carryCapacity ?? 30) || res.amount <= 0) {
           // Return to nearest castle/keep/fortress
           unit.harvestTargetId = null;
@@ -934,15 +940,15 @@ function aiPlaceBuilding(state: GameState, castle: Building, type: BuildingType,
 
   // Offset grid around castle
   const offsets: Record<string, { x: number; y: number }[]> = {
-    barracks:   [{ x: 150, y: 100 }],
-    archery:    [{ x: 150, y: -100 }],
-    altar:      [{ x: -140, y: 100 }],
-    chapel:     [{ x: 150, y: 220 }],
-    workshop:   [{ x: 150, y: -220 }],
-    sanctum:    [{ x: -140, y: -100 }],
+    barracks: [{ x: 150, y: 100 }],
+    archery: [{ x: 150, y: -100 }],
+    altar: [{ x: -140, y: 100 }],
+    chapel: [{ x: 150, y: 220 }],
+    workshop: [{ x: 150, y: -220 }],
+    sanctum: [{ x: -140, y: -100 }],
     blacksmith: [{ x: -140, y: 220 }],
-    tower:      [{ x: -80 + index * 100, y: -160 }, { x: -80 + index * 100, y: 260 }],
-    house:      [
+    tower: [{ x: -80 + index * 100, y: -160 }, { x: -80 + index * 100, y: 260 }],
+    house: [
       { x: -200, y: -60 + index * 80 },
       { x: -200, y: 20 + index * 80 },
       { x: -200, y: 100 + index * 80 },
@@ -1128,7 +1134,7 @@ function updateAI(state: GameState, dt: number): void {
 
       const cfg = UNIT_CONFIGS[unitType];
       if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
-          && res.food + cfg.foodCost <= res.maxFood) {
+        && res.food + cfg.foodCost <= res.maxFood) {
         barracks.trainingQueue.push(unitType);
         res.gold -= cfg.trainCost.gold;
         res.wood -= cfg.trainCost.wood;
@@ -1143,7 +1149,7 @@ function updateAI(state: GameState, dt: number): void {
       const unitType: UnitType = ai.techTier >= 2 && Math.random() < 0.4 ? 'musketeer' : 'bowman';
       const cfg = UNIT_CONFIGS[unitType];
       if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
-          && res.food + cfg.foodCost <= res.maxFood) {
+        && res.food + cfg.foodCost <= res.maxFood) {
         archeryBld.trainingQueue.push(unitType);
         res.gold -= cfg.trainCost.gold;
         res.wood -= cfg.trainCost.wood;
@@ -1158,7 +1164,7 @@ function updateAI(state: GameState, dt: number): void {
       const unitType: UnitType = Math.random() < 0.5 ? 'mage' : 'orcHealer';
       const cfg = UNIT_CONFIGS[unitType];
       if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
-          && res.food + cfg.foodCost <= res.maxFood) {
+        && res.food + cfg.foodCost <= res.maxFood) {
         chapelBld.trainingQueue.push(unitType);
         res.gold -= cfg.trainCost.gold;
         res.wood -= cfg.trainCost.wood;
@@ -1174,7 +1180,7 @@ function updateAI(state: GameState, dt: number): void {
       const unitType: UnitType = roll < 0.3 ? 'minotaur' : roll < 0.6 ? 'demon' : roll < 0.9 ? 'mammoth' : 'dragon';
       const cfg = UNIT_CONFIGS[unitType];
       if (cfg && res.gold >= cfg.trainCost.gold && res.wood >= cfg.trainCost.wood
-          && res.food + cfg.foodCost <= res.maxFood) {
+        && res.food + cfg.foodCost <= res.maxFood) {
         sanctumBld.trainingQueue.push(unitType);
         res.gold -= cfg.trainCost.gold;
         res.wood -= cfg.trainCost.wood;
@@ -1382,7 +1388,7 @@ function checkWinCondition(state: GameState): void {
     }
   }
   if (!blueHasCastle) { state.winner = 'red'; state.gameStatus = 'lost'; }
-  if (!redHasCastle)  { state.winner = 'blue'; state.gameStatus = 'won'; }
+  if (!redHasCastle) { state.winner = 'blue'; state.gameStatus = 'won'; }
 }
 
 // ── Player commands ────────────────────────────────────────────────────────────

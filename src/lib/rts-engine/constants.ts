@@ -82,6 +82,33 @@ export const UNIT_CONFIGS: Record<string, UnitConfig> = {
   horse:        { hp:80,  speed:140,damage:5, armor:1, range:40, attackSpeed:1.5, role:'melee', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
   boar:         { hp:60,  speed:90, damage:12,armor:1, range:40, attackSpeed:1.2, role:'melee', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
   pig:          { hp:20,  speed:45, damage:0, armor:0, range:0,  attackSpeed:0, role:'worker', foodCost:0, trainCost:{wood:0,gold:0}, trainTime:0, trainedAt:'castle', requiredTier:1 },
+
+  // ── WORGE (Shapeshifter Tribe) ─────────────────────────────────────────────────
+  // Worker
+  worgePawn:    { hp:65,  speed:82,  damage:7,  armor:0, range:42,  attackSpeed:1.9, role:'worker', foodCost:1, harvestSpeed:11, carryCapacity:38, trainCost:{wood:0,   gold:75},  trainTime:5,  trainedAt:'castle', requiredTier:1 },
+
+  // Melee T1 (Shifter Lodge / barracks)
+  bearWarrior:  { hp:160, speed:72,  damage:20, armor:3, range:52,  attackSpeed:0.9, role:'melee',  foodCost:3, trainCost:{wood:40,  gold:150}, trainTime:11, trainedAt:'barracks', requiredTier:1 },
+  raptorScout:  { hp:70,  speed:130, damage:18, armor:0, range:46,  attackSpeed:1.9, role:'melee',  foodCost:2, trainCost:{wood:20,  gold:130}, trainTime:9,  trainedAt:'barracks', requiredTier:1 },
+
+  // Ranged T1 (Hunt Grove / archery)
+  worgeHunter:  { hp:65,  speed:85,  damage:20, armor:0, range:190, attackSpeed:1.3, role:'ranged', foodCost:2, trainCost:{wood:30,  gold:140}, trainTime:9,  trainedAt:'archery',  requiredTier:1 },
+  birdRider:    { hp:110, speed:135, damage:28, armor:1, range:200, attackSpeed:1.2, role:'ranged', foodCost:4, trainCost:{wood:80,  gold:230}, trainTime:16, trainedAt:'archery',  requiredTier:2 },
+
+  // Melee T2
+  alphaWolfen:  { hp:240, speed:100, damage:32, armor:2, range:54,  attackSpeed:1.1, role:'melee',  foodCost:4, trainCost:{wood:70,  gold:195}, trainTime:14, trainedAt:'barracks', requiredTier:2 },
+
+  // Casters T2 (Spirit Circle / chapel)
+  spiritShaman: { hp:75,  mana:200, speed:75,  damage:20, armor:0, range:185, attackSpeed:1.1, role:'caster', foodCost:3, trainCost:{wood:40,  gold:210}, trainTime:15, trainedAt:'chapel', requiredTier:2 },
+  hexWitch:     { hp:55,  mana:220, speed:68,  damage:25, armor:0, range:200, attackSpeed:0.9, role:'caster', foodCost:3, trainCost:{wood:30,  gold:240}, trainTime:17, trainedAt:'chapel', requiredTier:2 },
+
+  // Siege T2 (Bone Forge / workshop)
+  siegeTroll:   { hp:300, speed:38,  damage:80, armor:3, range:280, attackSpeed:0.35, role:'siege', foodCost:5, trainCost:{wood:130, gold:210}, trainTime:24, trainedAt:'workshop', requiredTier:2 },
+
+  // Elite T3 (Ancient Maw / sanctum)
+  greatBear:    { hp:700, speed:68,  damage:65, armor:6, range:58,  attackSpeed:0.7, role:'melee',  foodCost:7, trainCost:{wood:150, gold:380}, trainTime:35, trainedAt:'sanctum', requiredTier:3 },
+  apexRaptor:   { hp:280, speed:145, damage:55, armor:2, range:50,  attackSpeed:1.6, role:'melee',  foodCost:5, trainCost:{wood:100, gold:320}, trainTime:28, trainedAt:'sanctum', requiredTier:3 },
+  stormBird:    { hp:380, speed:140, damage:70, armor:3, range:250, attackSpeed:0.9, role:'ranged', foodCost:6, trainCost:{wood:200, gold:350}, trainTime:32, trainedAt:'sanctum', requiredTier:3 },
 };
 
 // ── Building Configs (WC3 tech tree) ───────────────────────────────────────────
@@ -162,6 +189,25 @@ export const ABILITY_DEFS: Record<string, AbilityDef> = {
   battle_roar:     { id:'battle_roar',     name:'Battle Roar',     icon:'🦁', description:'Roars, increasing nearby allies attack speed and damage.',               targetType:'none',          cooldown:16, manaCost:90,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[10,18,26] },
   blood_rage:      { id:'blood_rage',      name:'Blood Rage',      icon:'🩸', description:'Each kill heals for a percentage of max HP.',                           targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[5,10,15] },
   apocalypse:      { id:'apocalypse',      name:'Apocalypse',      icon:'☠️', description:'Unleashes devastating AoE damage around the hero.',                     targetType:'none',          cooldown:130,manaCost:200, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[600] },
+
+  // ── Worge Heroes ─────────────────────────────────────────────────────────────
+  // Bear Lord (Urskal) — tank/bruiser
+  bear_smash:      { id:'bear_smash',      name:'Bear Smash',      icon:'🐻', description:'Slams the ground in a cone, dealing damage and stunning nearby enemies.',  targetType:'none',          cooldown:9,  manaCost:85,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[80,140,200] },
+  thick_hide:      { id:'thick_hide',      name:'Thick Hide',      icon:'🛡️', description:'Passive: each rank permanently increases armor and max HP.',              targetType:'none',          cooldown:0,  manaCost:0,   levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[3,6,9] },
+  battle_howl:     { id:'battle_howl',     name:'Battle Howl',     icon:'🌀', description:'Lets out a primal howl — allies gain +15% attack speed, enemies are briefly feared.',targetType:'none', cooldown:14, manaCost:95,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[3,5,7] },
+  primal_rage:     { id:'primal_rage',     name:'Primal Rage',     icon:'🔥', description:'Transforms into Great Bear form: +600 HP, +20 armor, +30 damage for 20s.',targetType:'none',          cooldown:120,manaCost:180, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[600] },
+
+  // Shadow Raptor (Ryx) — assassin/skirmisher
+  pounce:          { id:'pounce',          name:'Pounce',          icon:'🦎', description:'Leaps at a target dealing bonus damage; resets if target dies.',          targetType:'unit',          cooldown:8,  manaCost:70,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[110,190,270] },
+  vanish:          { id:'vanish',          name:'Vanish',          icon:'👁️', description:'Disappears into shadows for up to 6s; first attack from stealth deals bonus damage.',targetType:'none',cooldown:12, manaCost:80,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[2,4,6] },
+  feral_bite:      { id:'feral_bite',      name:'Feral Bite',      icon:'🩸', description:'Venomous bite that deals damage over 8s and slows the target.',           targetType:'unit',          cooldown:9,  manaCost:60,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[80,140,200] },
+  death_from_above:{ id:'death_from_above',name:'Death From Above',icon:'🦅', description:'Leaps high and crashes down on an area, dealing massive AoE damage to all enemies caught below.',targetType:'point',cooldown:100,manaCost:175,levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[450] },
+
+  // Spirit Caller (Zira) — healer/summoner
+  nature_mend:     { id:'nature_mend',     name:'Nature Mend',     icon:'🌿', description:'Channels nature energy to heal a target unit over 3 seconds.',            targetType:'unit',          cooldown:7,  manaCost:70,  levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[180,300,420] },
+  spirit_link:     { id:'spirit_link',     name:'Spirit Link',     icon:'🔗', description:'Links 3 nearby allies — damage taken is distributed equally among all linked units.',targetType:'none',cooldown:16, manaCost:100, levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[3,4,5] },
+  hex_totem:       { id:'hex_totem',       name:'Hex Totem',       icon:'🪆', description:'Plants a totem that pulses AoE slow & damage in a 180-radius for 12s.',   targetType:'point',         cooldown:18, manaCost:110, levelRequired:1, maxRank:3, isUltimate:false, effectPerRank:[20,32,44] },
+  ancestral_fury:  { id:'ancestral_fury',  name:'Ancestral Fury',  icon:'👻', description:'Calls the spirits of all fallen allies as spectral warriors for 25s.',     targetType:'none',          cooldown:150,manaCost:220, levelRequired:6, maxRank:1, isUltimate:true,  effectPerRank:[0] },
 };
 
 // ── Hero Configs (WC3 heroes — max 3 per match) ───────────────────────────────
@@ -221,6 +267,28 @@ export const HERO_CONFIGS: HeroConfig[] = [
     hpPerLevel: 65, manaPerLevel: 10, damagePerLevel: 3, armorPerLevel: 0.7,
     abilities: ['raging_charge', 'battle_roar', 'blood_rage', 'apocalypse'],
     summonedAt: 'altar', reviveTime: 55, reviveCost: 425,
+  },
+  // ── Worge Heroes ──────────────────────────────────────────────────────────────
+  {
+    type: 'bearLord', name: 'Urskal', title: 'Bear Lord',
+    hp: 850, mana: 200, damage: 32, armor: 5, speed: 80, range: 52, attackSpeed: 0.9,
+    hpPerLevel: 65, manaPerLevel: 12, damagePerLevel: 4, armorPerLevel: 0.7,
+    abilities: ['bear_smash', 'thick_hide', 'battle_howl', 'primal_rage'],
+    summonedAt: 'altar', reviveTime: 60, reviveCost: 450,
+  },
+  {
+    type: 'shadowRaptor', name: 'Ryx', title: 'Shadow Raptor',
+    hp: 480, mana: 260, damage: 40, armor: 1, speed: 135, range: 50, attackSpeed: 1.7,
+    hpPerLevel: 32, manaPerLevel: 18, damagePerLevel: 5, armorPerLevel: 0.3,
+    abilities: ['pounce', 'vanish', 'feral_bite', 'death_from_above'],
+    summonedAt: 'altar', reviveTime: 50, reviveCost: 400,
+  },
+  {
+    type: 'spiritCaller', name: 'Zira', title: 'Spirit Caller',
+    hp: 380, mana: 380, damage: 20, armor: 1, speed: 82, range: 230, attackSpeed: 1.0,
+    hpPerLevel: 28, manaPerLevel: 28, damagePerLevel: 3, armorPerLevel: 0.3,
+    abilities: ['nature_mend', 'spirit_link', 'hex_totem', 'ancestral_fury'],
+    summonedAt: 'altar', reviveTime: 50, reviveCost: 400,
   },
 ];
 

@@ -1,6 +1,6 @@
 // ── Grudge Warlords RTS — WC3-Style Type Definitions ──────────────────────────
 
-export type Faction = 'blue' | 'red' | 'neutral';
+export type Faction = 'blue' | 'red' | 'green' | 'neutral';
 
 // ── Unit classification (WC3-style roles) ──────────────────────────────────────
 export type UnitRole = 'worker' | 'melee' | 'ranged' | 'caster' | 'siege' | 'hero';
@@ -8,6 +8,14 @@ export type UnitRole = 'worker' | 'melee' | 'ranged' | 'caster' | 'siege' | 'her
 // ── Unit types from Miniworld ──────────────────────────────────────────────────
 export type HeroType = 'warrior' | 'lancer' | 'archer' | 'priest' | 'pawn';
 export type LegionType = 'orcPawn' | 'orcWarrior' | 'orcSpearman' | 'orcArcher' | 'orcHealer';
+// ── Worge (Shapeshifter Tribe / Green) ─────────────────────────────────────────
+export type WorgeWorkerType = 'worgePawn';
+export type WorgeMeleeType = 'bearWarrior' | 'raptorScout' | 'alphaWolfen';
+export type WorgeRangedType = 'worgeHunter' | 'birdRider';
+export type WorgeCasterType = 'spiritShaman' | 'hexWitch';
+export type WorgeSiegeType = 'siegeTroll';
+export type WorgeEliteType = 'greatBear' | 'apexRaptor' | 'stormBird';
+export type WorgeHeroType = 'bearLord' | 'shadowRaptor' | 'spiritCaller';
 export type ChampionType = 'arthax' | 'gangblanc' | 'grum' | 'kanji' | 'katan' | 'okomo' | 'zhinja' | 'borg';
 export type SoldierType =
   | 'swordsman' | 'spearman' | 'axeman' | 'assasin'
@@ -29,7 +37,8 @@ export type NeutralCreatureType =
 export type AnimalType =
   | 'sheep' | 'hornedSheep' | 'chicken' | 'chick' | 'horse' | 'boar' | 'pig';
 
-export type UnitType = HeroType | LegionType | ChampionType | SoldierType | MonsterType | NeutralCreatureType | AnimalType;
+export type WorgeType = WorgeWorkerType | WorgeMeleeType | WorgeRangedType | WorgeCasterType | WorgeSiegeType | WorgeEliteType | WorgeHeroType;
+export type UnitType = HeroType | LegionType | ChampionType | SoldierType | MonsterType | NeutralCreatureType | AnimalType | WorgeType;
 
 // ── Building types ─────────────────────────────────────────────────────────────
 export type BuildingType =
@@ -41,7 +50,7 @@ export type BuildingType =
 export type TechTier = 1 | 2 | 3;
 
 // ── Resource types ─────────────────────────────────────────────────────────────
-export type ResourceType = 'tree' | 'goldmine';
+export type ResourceType = 'tree' | 'goldmine' | 'rock';
 
 // ── Unit/Animation state ───────────────────────────────────────────────────────
 export type UnitState = 'idle' | 'moving' | 'attacking' | 'harvesting' | 'returning' | 'dead' | 'stunned' | 'building' | 'casting';
@@ -358,7 +367,11 @@ export interface GameState {
   completedUpgrades: Set<string>;
   /** Dead heroes waiting for revival */
   deadHeroes: { unitId: string; reviveTimer: number; reviveCost: number }[];
-  playerFaction: 'kingdom' | 'legion';
+  playerFaction: 'kingdom' | 'legion' | 'worge';
+  /** Third-player (green) resources — populated on 3-way maps */
+  greenResources: PlayerResources | null;
+  /** Second AI controller — populated on 3-way maps */
+  ai2State: AIState | null;
   popCap: number;
   mapId: string;
   gameStatus: 'menu' | 'playing' | 'paused' | 'won' | 'lost';

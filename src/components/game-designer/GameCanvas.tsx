@@ -89,6 +89,9 @@ export function GameCanvas() {
   const [hudTick, setHudTick] = useState(0);
 
   // ── PostMessage bridge — receives commands from GDevelop parent frame ─────
+  // startGame is defined further down; the ref forwards the latest version so the
+  // effect itself stays free of forward references.
+  const startGameRef = useRef<() => void>(() => { });
   useEffect(() => {
     const ALLOWED_ORIGINS = [
       'https://gdevelop-assistant.vercel.app',
@@ -116,7 +119,7 @@ export function GameCanvas() {
           break;
         }
         case 'game:start':
-          startGame();
+          startGameRef.current();
           break;
       }
     };
@@ -126,7 +129,7 @@ export function GameCanvas() {
       window.parent.postMessage({ type: 'rts:ready' }, '*');
     }
     return () => window.removeEventListener('message', handler);
-  }, [startGame]);
+  }, []);
 
   // ── Responsive canvas sizing ──────────────────────────────────────────────
   useEffect(() => {
